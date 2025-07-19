@@ -1,9 +1,12 @@
 import * as d3 from "https://cdn.jsdelivr.net/npm/d3@7/+esm";
 
 const RED = "rgba(220, 50, 32, 1)"
+const RADIUS = 50;
+const NODE_SEP_X = 130;
+const NODE_SEP_Y = 220;
 
 // Apply a force to align the nodes into a binary tree
-function forceBinaryTree(links, strength = 0.05, dx = 150, dy = 250) {
+function forceBinaryTree(links, strength = 0.1) {
   var nodes, random, nodeById;
 
   function initialize() {
@@ -24,13 +27,21 @@ function forceBinaryTree(links, strength = 0.05, dx = 150, dy = 250) {
 
       // Apply force to move towards expected position
       if (link.type == "left") {
-        // x alignment is slightly more important
-        child.vx += (par.x - dx - child.x) * strength * 1.05 * alpha;
-        child.vy += (par.y + dy - child.y) * strength * alpha;
+        // x alignment is slightly more important, so fix that faster
+        // let expect_x = par.x - dx;
+        // let expect_y = par.y + dy;
+        let expect_x = par.x - child.bst_width_right - NODE_SEP_X;
+        let expect_y = par.y + NODE_SEP_Y;
+        child.vx += (expect_x - child.x) * strength * 1.05 * alpha;
+        child.vy += (expect_y - child.y) * strength * alpha;
       }
       if (link.type == "right") {
-        child.vx += (par.x + dx - child.x) * strength * 1.05 * alpha;
-        child.vy += (par.y + dy - child.y) * strength * alpha;
+        // let expect_x = par.x + dx;
+        // let expect_y = par.y + dy;
+        let expect_x = par.x + child.bst_width_left + NODE_SEP_X;
+        let expect_y = par.y + NODE_SEP_Y;
+        child.vx += (expect_x - child.x) * strength * 1.05 * alpha;
+        child.vy += (expect_y - child.y) * strength * alpha;
       }
     });
   }
@@ -44,9 +55,54 @@ function forceBinaryTree(links, strength = 0.05, dx = 150, dy = 250) {
   return force;
 }
 
+function recomputeSpacing(nodes, links) {
+  let nodeById = new Map(nodes.map((d, i) => [d.id, d]));
+  // Convert to "edge-list"
+  let leftChild = new Map();
+  let rightChild = new Map();
+  // Find root node(s)
+  let roots = new Set(nodes.map((d, i) => d.id));
+  links.forEach(link => {
+    roots.delete(link.child);
+    (link.type == "left" ? leftChild : rightChild).set(link.parent, link.child);
+  });
+
+  function get_widths(id) {
+    let node = nodeById.get(id);
+    if (leftChild.has(id)) {
+      get_widths(leftChild.get(id));
+    }
+    if (rightChild.has(id)) {
+      get_widths(rightChild.get(id));
+    }
+    let left = leftChild.has(id) ? nodeById.get(leftChild.get(id)) : null;
+    let right = rightChild.has(id) ? nodeById.get(rightChild.get(id)) : null;
+    if (left == null) {
+      if (right == null) {
+        node.bst_width_left = 0;
+        node.bst_width_right = 0;
+      } else {
+        node.bst_width_left = 0;
+        node.bst_width_right = NODE_SEP_X + right.bst_width;
+      }
+    } else {
+      if (right == null) {
+        node.bst_width_left = NODE_SEP_X + left.bst_width;
+        node.bst_width_right = 0;
+      } else {
+        node.bst_width_left = NODE_SEP_X + left.bst_width;
+        node.bst_width_right = NODE_SEP_X + right.bst_width;
+      }
+    }
+
+    node.bst_width = node.bst_width_left + node.bst_width_right;
+    console.log(node);
+  }
+  roots.forEach(get_widths);
+}
+
 var width = window.innerWidth,
     height = window.innerHeight;
-// const width = 960, height = 500;
 
 let svg = d3.select("#container")
   .append("svg")
@@ -54,7 +110,6 @@ let svg = d3.select("#container")
   .attr("height", height);
 
 let defs = svg.append("defs");
-
 
 defs.append("filter")
   .attr("id", "dropShadowLow")
@@ -73,12 +128,13 @@ defs.append("filter")
   .attr("flood-opacity", 0.9);
 
 let nodes = [
-    {id: 0, x: 80, y: 80, r: 60, label: "0", color: RED}, 
-    {id: 1, x: 200, y: 160, r: 60, label: "1", color: RED}, 
-    {id: 2, x: 380, y: 100, r: 60, label: "2", color: RED},
-    {id: 3, x: 380, y: 100, r: 60, label: "3", color: "black"},
-    {id: 4, x: 380, y: 100, r: 60, label: "4", color: "black"},
-    {id: 5, x: 380, y: 100, r: 60, label: "5", color: RED},
+    {id: 0, x: 80, y: 80, r: RADIUS, label: "0", color: RED}, 
+    {id: 1, x: 200, y: 160, r: RADIUS, label: "1", color: RED}, 
+    {id: 2, x: 380, y: 100, r: RADIUS, label: "2", color: RED},
+    {id: 3, x: 380, y: 100, r: RADIUS, label: "3", color: "black"},
+    {id: 4, x: 380, y: 100, r: RADIUS, label: "4", color: "black"},
+    {id: 5, x: 380, y: 100, r: RADIUS, label: "5", color: RED},
+    {id: 6, x: 380, y: 100, r: RADIUS, label: "6", color: "black"},
 ];
 
 let bst_edges = [
@@ -86,7 +142,11 @@ let bst_edges = [
   {parent: 1, child: 3, type: "right"},
   {parent: 3, child: 4, type: "right"},
   {parent: 3, child: 2, type: "left"},
+  {parent: 0, child: 5, type: "right"},
+  {parent: 2, child: 6, type: "left"},
 ]
+
+recomputeSpacing(nodes, bst_edges);
 
 const simulation = d3
   .forceSimulation(nodes)
@@ -117,19 +177,13 @@ const node = svg
   .on("click", click)
   .call(d3.drag().on("start", dragstarted).on("drag", dragged).on("end", dragended))
   .on('mouseover', function(e, d) {
-    // d3.select(this).selectAll("circle").style("fill", highlightColor);
-    // d3.select(this).selectAll("circle").style("fill-opacity", 0.95);
     d3.select(this).selectAll("circle").attr("stroke-width", "2px");
-
     d3.select(this).selectAll("circle").attr("filter", "url(#dropShadowHigh)");
     d3.select(this).raise();
     
   })
   .on('mouseout', function(e, d) {
-    // d3.select(this).selectAll("circle").style("fill", d => d.color);
-    // d3.select(this).selectAll("circle").style("fill-opacity", 1.0);
     d3.select(this).selectAll("circle").attr("stroke-width", "1px");
-
     d3.select(this).selectAll("circle").attr("filter", "url(#dropShadowLow)");
   });
 
@@ -137,8 +191,6 @@ node
   .append("circle")
   .attr("r", d => d.r)
   .style("fill", d => d.color)
-  // .style("stroke", d => d.color == "black" ? "white" : "black")
-  // .style("stroke", "black")
   .attr("filter", "url(#dropShadowLow)");
 
 node
@@ -151,13 +203,6 @@ node
   .attr("fill", "white");
 
 function drawChildLink(d) {
-  // let theta = 2*Math.PI/360 * (d.type == "left" ? 225 : 315);
-  // let px = d.parent.x + d.parent.r*Math.cos(theta);
-  // let py = d.parent.y - d.parent.r*Math.sin(theta);
-
-  // return `M ${px},${py} Q${d.child.x},${py} ${d.child.x},${d.child.y}`;
-
-  // return `M ${d.parent.x + d.parent.r*(d.type == "left" ? -1 : 1)},${d.parent.y} Q${d.child.x},${d.parent.y} ${d.child.x},${d.child.y}`
   return `M ${d.parent.x},${d.parent.y} Q${d.child.x},${d.parent.y} ${d.child.x},${d.child.y}`
 }
 
