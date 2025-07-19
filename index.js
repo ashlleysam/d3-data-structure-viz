@@ -24,25 +24,18 @@ function forceBinaryTree(links, strength = 0.1) {
     links.forEach(link => {
       let par = link.parent;
       let child = link.child;
-
-      // Apply force to move towards expected position
+      // The position we want to move the child to
+      let expect_x = par.x;
       if (link.type == "left") {
-        // x alignment is slightly more important, so fix that faster
-        // let expect_x = par.x - dx;
-        // let expect_y = par.y + dy;
-        let expect_x = par.x - child.bst_width_right - NODE_SEP_X;
-        let expect_y = par.y + NODE_SEP_Y;
-        child.vx += (expect_x - child.x) * strength * 1.05 * alpha;
-        child.vy += (expect_y - child.y) * strength * alpha;
+        expect_x -= child.bst_width_right + NODE_SEP_X;
+      } else {
+        expect_x += child.bst_width_left + NODE_SEP_X;
       }
-      if (link.type == "right") {
-        // let expect_x = par.x + dx;
-        // let expect_y = par.y + dy;
-        let expect_x = par.x + child.bst_width_left + NODE_SEP_X;
-        let expect_y = par.y + NODE_SEP_Y;
-        child.vx += (expect_x - child.x) * strength * 1.05 * alpha;
-        child.vy += (expect_y - child.y) * strength * alpha;
-      }
+      let expect_y = par.y + NODE_SEP_Y;
+      // Modify the velocity to move it towards the desired location
+      // x alignment is slightly more important, so make the force stronger
+      child.vx += (expect_x - child.x) * strength * 1.05 * alpha;
+      child.vy += (expect_y - child.y) * strength * alpha;
     });
   }
 
@@ -55,9 +48,10 @@ function forceBinaryTree(links, strength = 0.1) {
   return force;
 }
 
+// Compute the spacing needed to ensure tree nodes don't overlap
 function recomputeSpacing(nodes, links) {
   let nodeById = new Map(nodes.map((d, i) => [d.id, d]));
-  // Convert to "edge-list"
+  // Convert edge list to adjacency list
   let leftChild = new Map();
   let rightChild = new Map();
   // Find root node(s)
@@ -67,6 +61,8 @@ function recomputeSpacing(nodes, links) {
     (link.type == "left" ? leftChild : rightChild).set(link.parent, link.child);
   });
 
+  // Recursively compute the width needed to ensure
+  // that the subtrees don't overlap
   function get_widths(id) {
     let node = nodeById.get(id);
     if (leftChild.has(id)) {
@@ -77,24 +73,16 @@ function recomputeSpacing(nodes, links) {
     }
     let left = leftChild.has(id) ? nodeById.get(leftChild.get(id)) : null;
     let right = rightChild.has(id) ? nodeById.get(rightChild.get(id)) : null;
-    if (left == null) {
-      if (right == null) {
-        node.bst_width_left = 0;
-        node.bst_width_right = 0;
-      } else {
-        node.bst_width_left = 0;
-        node.bst_width_right = NODE_SEP_X + right.bst_width;
-      }
-    } else {
-      if (right == null) {
-        node.bst_width_left = NODE_SEP_X + left.bst_width;
-        node.bst_width_right = 0;
-      } else {
-        node.bst_width_left = NODE_SEP_X + left.bst_width;
-        node.bst_width_right = NODE_SEP_X + right.bst_width;
-      }
+    node.bst_width_left = 0;
+    node.bst_width_right = 0;
+    // If there is a left or right child, the parent needs
+    // enough space to hold that child's subtree plus some padding
+    if (left != null) {
+      node.bst_width_left = NODE_SEP_X + left.bst_width;
     }
-
+    if (right != null) {
+      node.bst_width_right = NODE_SEP_X + right.bst_width;
+    }
     node.bst_width = node.bst_width_left + node.bst_width_right;
     console.log(node);
   }
@@ -135,6 +123,7 @@ let nodes = [
     {id: 4, x: 380, y: 100, r: RADIUS, label: "4", color: "black"},
     {id: 5, x: 380, y: 100, r: RADIUS, label: "5", color: RED},
     {id: 6, x: 380, y: 100, r: RADIUS, label: "6", color: "black"},
+    {id: 7, x: 380, y: 100, r: RADIUS, label: "7", color: "black"},
 ];
 
 let bst_edges = [
@@ -144,6 +133,7 @@ let bst_edges = [
   {parent: 3, child: 2, type: "left"},
   {parent: 0, child: 5, type: "right"},
   {parent: 2, child: 6, type: "left"},
+  {parent: 5, child: 7, type: "right"},
 ]
 
 recomputeSpacing(nodes, bst_edges);
