@@ -1,9 +1,19 @@
 import * as d3 from "https://cdn.jsdelivr.net/npm/d3@7/+esm";
 
-const RED = "rgba(220, 50, 32, 1)"
+const ESCAPE = "Escape";
+const RED = "red";
+const BLACK = "black"
+const NONE = "none";
+const RED_COLOR = "rgba(220, 50, 32, 1)"
+const BLACK_COLOR = "rgba(0, 0, 0, 1)"
+const COLOR_MAP = new Map([[RED, RED_COLOR], [BLACK, BLACK_COLOR], [NONE, "white"]]);
+const TEXT_COLOR_MAP = new Map([[RED, "white"], [BLACK, "white"], [NONE, "black"]]);
+const BORDER_COLOR_MAP = new Map([[RED, "black"], [BLACK, "white"], [NONE, "black"]]);
 const RADIUS = 50;
-const NODE_SEP_X = 130;
-const NODE_SEP_Y = 220;
+const NODE_SEP_X = 120;
+const NODE_SEP_Y = 150;
+let last_clicked = null;
+let last_clicked_id = null;
 
 // Apply a force to align the nodes into a binary tree
 function forceBinaryTree(links, strength = 0.1) {
@@ -84,7 +94,6 @@ function recomputeSpacing(nodes, links) {
       node.bst_width_right = NODE_SEP_X + right.bst_width;
     }
     node.bst_width = node.bst_width_left + node.bst_width_right;
-    console.log(node);
   }
   roots.forEach(get_widths);
 }
@@ -92,7 +101,7 @@ function recomputeSpacing(nodes, links) {
 var width = window.innerWidth,
     height = window.innerHeight;
 
-let svg = d3.select("#container")
+let svg = d3.select("#d3_container")
   .append("svg")
   .attr("width", width)
   .attr("height", height);
@@ -105,40 +114,44 @@ defs.append("filter")
   .attr("dx", 0)
   .attr("dy", 1)
   .attr("stdDeviation", 3)
-  .attr("flood-opacity", 0.8);
+  .attr("flood-opacity", 0.8)
+  .attr("height", "300%");
 
 defs.append("filter")
   .attr("id", "dropShadowHigh")
   .append("feDropShadow")
   .attr("dx", 0)
-  .attr("dy", 3)
-  .attr("stdDeviation", 5)
-  .attr("flood-opacity", 0.9);
+  .attr("dy", 4)
+  .attr("stdDeviation", 4)
+  .attr("flood-opacity", 0.9)
+  .attr("height", "300%");
 
 let nodes = [
-    {id: 0, x: 80, y: 80, r: RADIUS, label: "0", color: RED}, 
-    {id: 1, x: 200, y: 160, r: RADIUS, label: "1", color: RED}, 
-    {id: 2, x: 380, y: 100, r: RADIUS, label: "2", color: RED},
-    {id: 3, x: 380, y: 100, r: RADIUS, label: "3", color: "black"},
-    {id: 4, x: 380, y: 100, r: RADIUS, label: "4", color: "black"},
-    {id: 5, x: 380, y: 100, r: RADIUS, label: "5", color: RED},
-    {id: 6, x: 380, y: 100, r: RADIUS, label: "6", color: "black"},
-    {id: 7, x: 380, y: 100, r: RADIUS, label: "7", color: "black"},
+    {id: 0, x: 80, y: 80, r: RADIUS, label: "0", color: RED, selected: false}, 
+    {id: 1, x: 200, y: 160, r: RADIUS, label: "1", color: BLACK, selected: false}, 
+    {id: 2, x: 380, y: 100, r: RADIUS, label: "2", color: NONE, selected: false},
+    {id: 3, x: 380, y: 100, r: RADIUS, label: "3", color: NONE, selected: false},
+    // {id: 4, x: 380, y: 100, r: RADIUS, label: "4", color: "black", selected: false},
+    // {id: 5, x: 380, y: 100, r: RADIUS, label: "5", color: RED, selected: false},
+    // {id: 6, x: 380, y: 100, r: RADIUS, label: "6", color: "black", selected: false},
+    // {id: 7, x: 380, y: 100, r: RADIUS, label: "7", color: "black", selected: false},
 ];
 
 let bst_edges = [
   {parent: 1, child: 0, type: "left"},
   {parent: 1, child: 3, type: "right"},
-  {parent: 3, child: 4, type: "right"},
-  {parent: 3, child: 2, type: "left"},
-  {parent: 0, child: 5, type: "right"},
-  {parent: 2, child: 6, type: "left"},
-  {parent: 5, child: 7, type: "right"},
+  // {parent: 3, child: 4, type: "right"},
+  // {parent: 3, child: 2, type: "left"},
+  // {parent: 0, child: 5, type: "right"},
+  // {parent: 2, child: 6, type: "left"},
+  // {par;ent: 5, child: 7, type: "right"},
 ]
+
+let nodeById = new Map(nodes.map((d, i) => [d.id, d]));
 
 recomputeSpacing(nodes, bst_edges);
 
-const simulation = d3
+let simulation = d3
   .forceSimulation(nodes)
   .alphaTarget(0.3)
   .force("repulse", d3.forceManyBody().strength(-120))
@@ -149,7 +162,7 @@ const simulation = d3
   .force("BST", forceBinaryTree(bst_edges))
   .on("tick", tick);
 
-const link = svg.append("g")
+let link = svg.append("g")
   .selectAll(".link")
   .data(bst_edges)
   .join("path")
@@ -157,44 +170,70 @@ const link = svg.append("g")
   .attr("fill", "none")
   .attr("stroke", "black");
 
-const node = svg
+let node = svg
   .append("g")
   .selectAll(".node")
   .data(nodes)
   .join("g")
-  .attr("class", "node")
-  .attr("stroke-width", "1px")
-  .on("click", click)
+  .attr("class", "svg_shadow")
+  // .attr("stroke-width", "1px")
+  .on("dblclick", click)
+  // .on("click", click);
   .call(d3.drag().on("start", dragstarted).on("drag", dragged).on("end", dragended))
   .on('mouseover', function(e, d) {
-    d3.select(this).selectAll("circle").attr("stroke-width", "2px");
-    d3.select(this).selectAll("circle").attr("filter", "url(#dropShadowHigh)");
+    // d3.select(this).selectAll("circle").attr("stroke-width", "2px");
+    // d3.select(this).selectAll("circle").attr("filter", "url(#dropShadowHigh)");
     d3.select(this).raise();
     
   })
   .on('mouseout', function(e, d) {
-    d3.select(this).selectAll("circle").attr("stroke-width", "1px");
-    d3.select(this).selectAll("circle").attr("filter", "url(#dropShadowLow)");
+    // d3.select(this).selectAll("circle").attr("stroke-width", "1px");
+    // d3.select(this).selectAll("circle").attr("filter", "url(#dropShadowLow)");
   });
 
-node
+let shapes = node
   .append("circle")
   .attr("r", d => d.r)
-  .style("fill", d => d.color)
-  .attr("filter", "url(#dropShadowLow)");
+  .style("fill", d => {
+    return COLOR_MAP.get(d.color);
+  });
+  // .attr("filter", "url(#dropShadowLow)")
+  // .attr("style", "transition: all 0.3s cubic-bezier(.25,.8,.25,1);");
 
-node
+let text = node
   .append("text")
   .text(d => d.label)
   .attr("text-anchor", "middle")
   .attr("dominant-baseline", "central")
   .attr("font-size", "2.5em")
   .attr("font-family", "sans-serif")
-  .attr("fill", "white");
+  .attr("fill", d => TEXT_COLOR_MAP.get(d.color));
 
 function drawChildLink(d) {
   return `M ${d.parent.x},${d.parent.y} Q${d.child.x},${d.parent.y} ${d.child.x},${d.child.y}`
 }
+
+function setSelectedColor(color) {
+  return function () {
+    if (last_clicked == null) return;
+    nodeById.get(last_clicked_id).color = color;
+    shapes.style("fill", d => COLOR_MAP.get(d.color));
+    text.attr("fill", d => TEXT_COLOR_MAP.get(d.color));
+    last_clicked
+      .selectAll("circle")
+      .attr("stroke", BORDER_COLOR_MAP.get(color))
+      .attr("stroke-width", "4px");
+  };
+}
+
+const data_input = document.getElementById("nodeData");
+const none_button = document.getElementById("noneButton");
+none_button.onclick = setSelectedColor(NONE);
+const red_button = document.getElementById("redButton");
+red_button.onclick = setSelectedColor(RED);
+const black_button = document.getElementById("blackButton");
+black_button.onclick = setSelectedColor(BLACK);
+
 
 function tick() {
   // link
@@ -207,8 +246,49 @@ function tick() {
   node.attr("transform", d => `translate(${d.x},${d.y})`);
 }
 
+var mouseX, mouseY = null;
+
+d3.select("body")
+  .on("keydown", function(e) {
+    if (e.key == ESCAPE && last_clicked != null) {
+      last_clicked.selectAll("circle")
+        .attr("stroke", "none")
+        .attr("stroke-width", "0px");
+      last_clicked = null;
+      last_clicked_id = null;
+    } else if (e.key == 'n') {
+      // console.log(mouseX, mouseY);
+      // nodes.push({id: nodes.length, x: mouseX, y: mouseY, r: RADIUS, label: nodes.length, color: RED, selected: false});
+      // console.log(nodes);
+    }
+  })
+  .on('mousemove', function (e) {
+    [mouseX, mouseY] = d3.pointer(e);
+  });
+
 function click(event, d) {
-  console.log(d);
+  if (last_clicked != null) {
+    last_clicked.selectAll("circle")
+      .attr("stroke", "none")
+      .attr("stroke-width", "0px");
+  }
+  d3.select(this).selectAll("circle")
+    .attr("stroke", BORDER_COLOR_MAP.get(d.color))
+    .attr("stroke-width", "4px");
+  last_clicked = d3.select(this);
+  last_clicked_id = d.id;
+
+  data_input.value = d.label;
+  none_button.checked = false;
+  red_button.checked = false;
+  black_button.checked = false;
+  if (d.color == RED) {
+    red_button.checked = true;
+  } else if (d.color == BLACK) {
+    black_button.checked = true;
+  } else {
+    none_button.checked = true;
+  }
 }
 
 function dragstarted(event) {
