@@ -227,6 +227,11 @@ function setSelectedColor(color) {
 }
 
 const data_input = document.getElementById("nodeData");
+data_input.oninput = function(ev) {
+  if (last_clicked == null) return;
+  nodeById.get(last_clicked_id).label = this.value;
+  text.text(d => d.label);
+};
 const none_button = document.getElementById("noneButton");
 none_button.onclick = setSelectedColor(NONE);
 const red_button = document.getElementById("redButton");
