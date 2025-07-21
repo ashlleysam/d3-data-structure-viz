@@ -110,15 +110,26 @@ let svg = d3.select("#d3_container")
   .attr("height", height);
 
 let nodes = [
-    {id: 0, x: 80, y: 80, r: RADIUS, label: "0", color: RED, selected: false}, 
-    {id: 1, x: 200, y: 160, r: RADIUS, label: "1", color: BLACK, selected: false}, 
-    {id: 2, x: 380, y: 100, r: RADIUS, label: "2", color: NONE, selected: false},
-    {id: 3, x: 380, y: 100, r: RADIUS, label: "3", color: NONE, selected: false},
-    {id: 4, x: 380, y: 100, r: RADIUS, label: "4", color: "black", selected: false},
-    {id: 5, x: 380, y: 100, r: RADIUS, label: "5", color: RED, selected: false},
-    {id: 6, x: 380, y: 100, r: RADIUS, label: "6", color: "black", selected: false},
-    {id: 7, x: 380, y: 100, r: RADIUS, label: "7", color: "black", selected: false},
+    {id: 0, x: 0, y: 0, r: RADIUS, label: "0", color: RED, selected: false}, 
+    {id: 1, x: 0, y: 0, r: RADIUS, label: "1", color: BLACK, selected: false}, 
+    // {id: 2, x: 380, y: 100, r: RADIUS, label: "2", color: NONE, selected: false},
+    {id: 3, x: 0, y: 0, r: RADIUS, label: "3", color: NONE, selected: false},
+    // {id: 4, x: 380, y: 100, r: RADIUS, label: "4", color: "black", selected: false},
+    // {id: 5, x: 380, y: 100, r: RADIUS, label: "5", color: RED, selected: false},
+    // {id: 6, x: 380, y: 100, r: RADIUS, label: "6", color: "black", selected: false},
+    // {id: 7, x: 380, y: 100, r: RADIUS, label: "7", color: "black", selected: false},
 ];
+
+// let nodes = [
+//     {id: 0, x: 80, y: 80, r: RADIUS, label: "0", color: RED, selected: false}, 
+//     {id: 1, x: 200, y: 160, r: RADIUS, label: "1", color: BLACK, selected: false}, 
+//     // {id: 2, x: 380, y: 100, r: RADIUS, label: "2", color: NONE, selected: false},
+//     {id: 3, x: 380, y: 100, r: RADIUS, label: "3", color: NONE, selected: false},
+//     // {id: 4, x: 380, y: 100, r: RADIUS, label: "4", color: "black", selected: false},
+//     // {id: 5, x: 380, y: 100, r: RADIUS, label: "5", color: RED, selected: false},
+//     // {id: 6, x: 380, y: 100, r: RADIUS, label: "6", color: "black", selected: false},
+//     // {id: 7, x: 380, y: 100, r: RADIUS, label: "7", color: "black", selected: false},
+// ];
 
 nodes.forEach(node => {
     max_id = Math.max(max_id, node.id);
@@ -127,11 +138,11 @@ nodes.forEach(node => {
 let bst_edges = [
   {parent: 1, child: 0, type: "left"},
   {parent: 1, child: 3, type: "right"},
-  {parent: 3, child: 4, type: "right"},
-  {parent: 3, child: 2, type: "left"},
-  {parent: 0, child: 5, type: "right"},
-  {parent: 2, child: 6, type: "left"},
-  {parent: 5, child: 7, type: "right"},
+  // {parent: 3, child: 4, type: "right"},
+  // {parent: 3, child: 2, type: "left"},
+  // {parent: 0, child: 5, type: "right"},
+  // {parent: 2, child: 6, type: "left"},
+  // {parent: 5, child: 7, type: "right"},
 ]
 
 let nodeById = new Map(nodes.map((d, i) => [d.id, d]));
