@@ -112,24 +112,13 @@ let svg = d3.select("#d3_container")
 let nodes = [
     {id: 0, x: 0, y: 0, r: RADIUS, label: "0", color: RED, selected: false}, 
     {id: 1, x: 0, y: 0, r: RADIUS, label: "1", color: BLACK, selected: false}, 
-    // {id: 2, x: 380, y: 100, r: RADIUS, label: "2", color: NONE, selected: false},
+    {id: 2, x: 380, y: 100, r: RADIUS, label: "2", color: NONE, selected: false},
     {id: 3, x: 0, y: 0, r: RADIUS, label: "3", color: NONE, selected: false},
-    // {id: 4, x: 380, y: 100, r: RADIUS, label: "4", color: "black", selected: false},
-    // {id: 5, x: 380, y: 100, r: RADIUS, label: "5", color: RED, selected: false},
-    // {id: 6, x: 380, y: 100, r: RADIUS, label: "6", color: "black", selected: false},
-    // {id: 7, x: 380, y: 100, r: RADIUS, label: "7", color: "black", selected: false},
+    {id: 4, x: 380, y: 100, r: RADIUS, label: "4", color: "black", selected: false},
+    {id: 5, x: 380, y: 100, r: RADIUS, label: "5", color: RED, selected: false},
+    {id: 6, x: 380, y: 100, r: RADIUS, label: "6", color: "black", selected: false},
+    {id: 7, x: 380, y: 100, r: RADIUS, label: "7", color: "black", selected: false},
 ];
-
-// let nodes = [
-//     {id: 0, x: 80, y: 80, r: RADIUS, label: "0", color: RED, selected: false}, 
-//     {id: 1, x: 200, y: 160, r: RADIUS, label: "1", color: BLACK, selected: false}, 
-//     // {id: 2, x: 380, y: 100, r: RADIUS, label: "2", color: NONE, selected: false},
-//     {id: 3, x: 380, y: 100, r: RADIUS, label: "3", color: NONE, selected: false},
-//     // {id: 4, x: 380, y: 100, r: RADIUS, label: "4", color: "black", selected: false},
-//     // {id: 5, x: 380, y: 100, r: RADIUS, label: "5", color: RED, selected: false},
-//     // {id: 6, x: 380, y: 100, r: RADIUS, label: "6", color: "black", selected: false},
-//     // {id: 7, x: 380, y: 100, r: RADIUS, label: "7", color: "black", selected: false},
-// ];
 
 nodes.forEach(node => {
     max_id = Math.max(max_id, node.id);
@@ -138,11 +127,11 @@ nodes.forEach(node => {
 let bst_edges = [
   {parent: 1, child: 0, type: "left"},
   {parent: 1, child: 3, type: "right"},
-  // {parent: 3, child: 4, type: "right"},
-  // {parent: 3, child: 2, type: "left"},
-  // {parent: 0, child: 5, type: "right"},
-  // {parent: 2, child: 6, type: "left"},
-  // {parent: 5, child: 7, type: "right"},
+  {parent: 3, child: 4, type: "right"},
+  {parent: 3, child: 2, type: "left"},
+  {parent: 0, child: 5, type: "right"},
+  {parent: 2, child: 6, type: "left"},
+  {parent: 5, child: 7, type: "right"},
 ]
 
 let nodeById = new Map(nodes.map((d, i) => [d.id, d]));
@@ -275,6 +264,7 @@ function setSelectedColor(color) {
 }
 
 const data_input = document.getElementById("nodeData");
+data_input.disabled = true;
 data_input.oninput = function(ev) {
   if (last_clicked_id == null) return;
   nodeById.get(last_clicked_id).label = data_input.value;
@@ -304,6 +294,14 @@ d3.select("body")
       nodeById.get(last_clicked_id).selected = false;
       last_clicked_id = null;
       redraw();
+      none_button.disabled = true;
+      red_button.disabled = true;
+      black_button.disabled = true;
+      none_button.checked = false;
+      red_button.checked = false;
+      black_button.checked = false;
+      data_input.disabled = true;
+      data_input.value = "";
     } else if (e.key == 'n') {
       nodes.push({id: max_id + 1, x: mouseX, y: mouseY, r: RADIUS, label: max_id + 1, color: NONE, selected: true});
       max_id += 1;
@@ -353,6 +351,10 @@ function click(event, d) {
   } else {
     none_button.checked = true;
   }
+  none_button.disabled = false;
+  red_button.disabled = false;
+  black_button.disabled = false;
+  data_input.disabled = false;
 }
 
 function dragstarted(event) {
