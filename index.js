@@ -12,8 +12,8 @@ const BORDER_COLOR_MAP = new Map([[RED, "black"], [BLACK, "white"], [NONE, "blac
 const RADIUS = 50;
 const NODE_SEP_X = 120;
 const NODE_SEP_Y = 150;
-let last_clicked = null;
 let last_clicked_id = null;
+let max_id = 0;
 
 // Apply a force to align the nodes into a binary tree
 function forceBinaryTree(links, strength = 0.1) {
@@ -110,15 +110,19 @@ let svg = d3.select("#d3_container")
   .attr("height", height);
 
 let nodes = [
-    {id: 0, x: 80, y: 80, r: RADIUS, label: "0", color: RED}, 
-    {id: 1, x: 200, y: 160, r: RADIUS, label: "1", color: BLACK}, 
-    {id: 2, x: 380, y: 100, r: RADIUS, label: "2", color: NONE},
-    {id: 3, x: 380, y: 100, r: RADIUS, label: "3", color: NONE},
-    {id: 4, x: 380, y: 100, r: RADIUS, label: "4", color: "black"},
-    {id: 5, x: 380, y: 100, r: RADIUS, label: "5", color: RED},
-    {id: 6, x: 380, y: 100, r: RADIUS, label: "6", color: "black"},
-    {id: 7, x: 380, y: 100, r: RADIUS, label: "7", color: "black"},
+    {id: 0, x: 80, y: 80, r: RADIUS, label: "0", color: RED, selected: false}, 
+    {id: 1, x: 200, y: 160, r: RADIUS, label: "1", color: BLACK, selected: false}, 
+    {id: 2, x: 380, y: 100, r: RADIUS, label: "2", color: NONE, selected: false},
+    {id: 3, x: 380, y: 100, r: RADIUS, label: "3", color: NONE, selected: false},
+    {id: 4, x: 380, y: 100, r: RADIUS, label: "4", color: "black", selected: false},
+    {id: 5, x: 380, y: 100, r: RADIUS, label: "5", color: RED, selected: false},
+    {id: 6, x: 380, y: 100, r: RADIUS, label: "6", color: "black", selected: false},
+    {id: 7, x: 380, y: 100, r: RADIUS, label: "7", color: "black", selected: false},
 ];
+
+nodes.forEach(node => {
+    max_id = Math.max(max_id, node.id);
+});
 
 let bst_edges = [
   {parent: 1, child: 0, type: "left"},
@@ -173,9 +177,9 @@ let shapes = node
   .append("circle")
   .attr("class", "nodeShape")
   .attr("r", d => d.r)
-  .style("fill", d => {
-    return COLOR_MAP.get(d.color);
-  });
+  .style("fill", d => COLOR_MAP.get(d.color))
+  .attr("stroke", d => BORDER_COLOR_MAP.get(d.color))
+  .attr("stroke-width", d => d.selected ? "4px" : "0px");
 
 let text = node
   .append("text")
@@ -189,8 +193,6 @@ let text = node
 
 function redraw() {
   nodeById = new Map(nodes.map((d, i) => [d.id, d]));
-  console.log("Nodes: ", nodes);
-  console.log("Edges: ", bst_edges);
   recomputeSpacing(nodes, bst_edges);
   simulation
     .nodes(nodes)
@@ -216,9 +218,9 @@ function redraw() {
     .append("circle")
     .attr("class", "nodeShape")
     .attr("r", d => d.r)
-    .style("fill", d => {
-      return COLOR_MAP.get(d.color);
-    })
+    .style("fill", d => COLOR_MAP.get(d.color))
+    .attr("stroke", d => BORDER_COLOR_MAP.get(d.color))
+    .attr("stroke-width", d => d.selected ? "4px" : "0px")
     .merge(shapes);
 
   text = node
@@ -252,20 +254,18 @@ function drawChildLink(d) {
 
 function setSelectedColor(color) {
   return function () {
-    if (last_clicked == null) return;
+    if (last_clicked_id == null) return;
     nodeById.get(last_clicked_id).color = color;
-    shapes.style("fill", d => COLOR_MAP.get(d.color));
+    shapes.style("fill", d => COLOR_MAP.get(d.color))
+      .attr("stroke", d => BORDER_COLOR_MAP.get(d.color))
+      .attr("stroke-width", d => d.selected ? "4px" : "0px");
     text.attr("fill", d => TEXT_COLOR_MAP.get(d.color));
-    last_clicked
-      .selectAll("circle")
-      .attr("stroke", BORDER_COLOR_MAP.get(color))
-      .attr("stroke-width", "4px");
   };
 }
 
 const data_input = document.getElementById("nodeData");
 data_input.oninput = function(ev) {
-  if (last_clicked == null) return;
+  if (last_clicked_id == null) return;
   nodeById.get(last_clicked_id).label = data_input.value;
   text.text(d => d.label);
 };
@@ -281,11 +281,6 @@ red_button.checked = false;
 black_button.checked = false;
 
 function tick() {
-  // link
-  //   .attr("x1", d => d.parent.x)
-  //   .attr("y1", d => d.parent.y)
-  //   .attr("x2", d => d.child.x)
-  //   .attr("y2", d => d.child.y);
   link.attr("d", d => drawChildLink(d))
   node.attr("transform", d => `translate(${d.x},${d.y})`);
 }
@@ -294,20 +289,32 @@ var mouseX, mouseY = null;
 
 d3.select("body")
   .on("keydown", function(e) {
-    if (e.key == ESCAPE && last_clicked != null) {
-      last_clicked.selectAll("circle")
-        .attr("stroke", "none")
-        .attr("stroke-width", "0px");
-      last_clicked = null;
+    if (e.key == ESCAPE && last_clicked_id != null) {
+      nodeById.get(last_clicked_id).selected = false;
       last_clicked_id = null;
+      redraw();
     } else if (e.key == 'n') {
-      nodes.push({id: nodes.length, x: mouseX, y: mouseY, r: RADIUS, label: nodes.length, color: NONE});
+      nodes.push({id: max_id + 1, x: mouseX, y: mouseY, r: RADIUS, label: max_id + 1, color: NONE, selected: true});
+      max_id += 1;
+      if (last_clicked_id != null) {
+        nodeById.get(last_clicked_id).selected = false;
+      } 
+      last_clicked_id = max_id;
+      data_input.value = max_id;
+      none_button.checked = true;
+      red_button.checked = false;
+      black_button.checked = false;
       redraw();
     } else if (e.key == 'd') {
-      if (last_clicked == null) return;
+      if (last_clicked_id == null) return;
       nodes = nodes.filter(d => d.id != last_clicked_id);
       bst_edges = bst_edges.filter(d => d.parent.id != last_clicked_id && d.child.id != last_clicked_id);
       redraw();
+      last_clicked_id = null;
+      data_input.value = "";
+      none_button.checked = false;
+      red_button.checked = false;
+      black_button.checked = false;
     }
   })
   .on('mousemove', function (e) {
@@ -315,15 +322,13 @@ d3.select("body")
   });
 
 function click(event, d) {
-  if (last_clicked != null) {
-    last_clicked.selectAll("circle")
-      .attr("stroke", "none")
-      .attr("stroke-width", "0px");
+  if (last_clicked_id != null) {
+    nodeById.get(last_clicked_id).selected = false;
   }
-  d3.select(this).selectAll("circle")
-    .attr("stroke", BORDER_COLOR_MAP.get(d.color))
-    .attr("stroke-width", "4px");
-  last_clicked = d3.select(this);
+  d.selected = true;
+
+  node.selectAll(".nodeShape").attr("stroke-width", d => d.selected ? "4px" : "0px");
+
   last_clicked_id = d.id;
 
   data_input.value = d.label;
