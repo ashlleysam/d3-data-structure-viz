@@ -125,13 +125,13 @@ nodes.forEach(node => {
 });
 
 let bst_edges = [
-  {parent: 1, child: 0, type: "left"},
-  {parent: 1, child: 3, type: "right"},
-  {parent: 3, child: 4, type: "right"},
-  {parent: 3, child: 2, type: "left"},
-  {parent: 0, child: 5, type: "right"},
-  {parent: 2, child: 6, type: "left"},
-  {parent: 5, child: 7, type: "right"},
+  {parent: 1, child: 0, type: "left", selected: false},
+  {parent: 1, child: 3, type: "right", selected: false},
+  {parent: 3, child: 4, type: "right", selected: false},
+  {parent: 3, child: 2, type: "left", selected: false},
+  {parent: 0, child: 5, type: "right", selected: false},
+  {parent: 2, child: 6, type: "left", selected: false},
+  {parent: 5, child: 7, type: "right", selected: false},
 ]
 
 let nodeById = new Map(nodes.map((d, i) => [d.id, d]));
@@ -154,7 +154,6 @@ window.onresize = function() {
   height = window.innerHeight;
   svg.attr("width", width).attr("height", height);
   simulation.force("center", d3.forceCenter(width/2,height/2));
-  console.log("Resize");
 }
 
 let g_link = svg.append("g").attr("class", "links");
@@ -163,10 +162,7 @@ let link = g_link
   .data(bst_edges)
   .enter()
   .append("path")
-  .attr("class", "link")
-  .attr("stroke-width", "8px")
-  .attr("fill", "none")
-  .attr("stroke", "black");
+  .attr("class", "link");
 
 let g_node = svg.append("g").attr("class", "nodes");
 let node = g_node
@@ -175,7 +171,13 @@ let node = g_node
   .enter()
   .append("g")
   .attr("class", "node")
-  .on("dblclick", click)
+  .on("dblclick", node_dblclick)
+  .on("onclick",
+    function(e, d) {
+      console.log("Hello");
+      console.log(e);
+    }
+  )
   .call(d3.drag().on("start", dragstarted).on("drag", dragged).on("end", dragended))
   .on('mouseover', function(e, d) {
     d3.select(this).raise();
@@ -213,7 +215,7 @@ function redraw() {
     .enter()
     .append("g")
     .attr("class", "node")
-    .on("dblclick", click)
+    .on("dblclick", node_dblclick)
     .call(d3.drag().on("start", dragstarted).on("drag", dragged).on("end", dragended))
     .on('mouseover', function(e, d) {
       d3.select(this).raise();
@@ -288,6 +290,9 @@ black_button.onclick = setSelectedColor(BLACK);
 none_button.checked = false;
 red_button.checked = false;
 black_button.checked = false;
+none_button.disabled = true;
+red_button.disabled = true;
+black_button.disabled = true;
 
 function tick() {
   link.attr("d", d => drawChildLink(d))
@@ -336,7 +341,11 @@ d3.select("body")
       none_button.checked = false;
       red_button.checked = false;
       black_button.checked = false;
-    } else if (e.key == "Ctrl" || e.key == "Meta") {
+      data_input.disabled = true;
+      none_button.disabled = true;
+      red_button.disabled = true;
+      black_button.disabled = true;
+    } else if (e.key == "Control") {
       console.log(e.key);
     }
   })
@@ -344,7 +353,7 @@ d3.select("body")
     [mouseX, mouseY] = d3.pointer(e);
   });
 
-function click(event, d) {
+function node_dblclick(event, d) {
   if (last_clicked_id != null) {
     nodeById.get(last_clicked_id).selected = false;
   }
