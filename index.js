@@ -149,6 +149,14 @@ let simulation = d3
   .force("BST", forceBinaryTree(bst_edges))
   .on("tick", tick);
 
+window.onresize = function() {
+  width = window.innerWidth;
+  height = window.innerHeight;
+  svg.attr("width", width).attr("height", height);
+  simulation.force("center", d3.forceCenter(width/2,height/2));
+  console.log("Resize");
+}
+
 let g_link = svg.append("g").attr("class", "links");
 let link = g_link
   .selectAll(".link")
@@ -313,6 +321,10 @@ d3.select("body")
       none_button.checked = true;
       red_button.checked = false;
       black_button.checked = false;
+      none_button.disabled = false;
+      red_button.disabled = false;
+      black_button.disabled = false;
+      data_input.disabled = false;
       redraw();
     } else if (e.key == 'd') {
       if (last_clicked_id == null) return;
@@ -324,6 +336,8 @@ d3.select("body")
       none_button.checked = false;
       red_button.checked = false;
       black_button.checked = false;
+    } else if (e.key == "Ctrl" || e.key == "Meta") {
+      console.log(e.key);
     }
   })
   .on('mousemove', function (e) {
