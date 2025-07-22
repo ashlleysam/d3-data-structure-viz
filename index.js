@@ -13,7 +13,8 @@ const BORDER_COLOR_MAP = new Map([[RED, "black"], [BLACK, "white"], [NONE, "blac
 const RADIUS = 50;
 const NODE_SEP_X = 120;
 const NODE_SEP_Y = 150;
-let node_clicked_id = null;
+let node_selected_id = null;
+let edge_selected_id = null;
 let node_hover_id = null;
 let edge_hover_id = null;
 let max_node_id = 0;
@@ -151,7 +152,15 @@ function showContextMenu(e) {
     context_add_left_child.style = "display: none;";
     context_add_right_child.style = "display: none;";
   }
-  context_delete_edge.style = node_hover_id == null && edge_hover_id != null ? "" : "display: none;";
+
+  if (node_hover_id == null && edge_hover_id != null) {
+    context_delete_edge.style = "";
+    edgeById.get(edge_hover_id).selected = true;
+    link.attr("class", d => d.selected ? "link-selected" : "link");
+    edge_selected_id = edge_hover_id;
+  } else {
+    context_delete_edge.style = "display: none;";
+  }
   
   ctx_menu_select_node_id = node_hover_id;
   ctx_menu_select_edge_id = edge_hover_id;
@@ -281,7 +290,7 @@ let link = g_link
   .data(bst_edges)
   .enter()
   .append("path")
-  .attr("class", "link")
+  .attr("class", d => d.selected ? "link-selected" : "link")
   .on("mouseover", edge_onmouseover)
   .on("mouseout", edge_onmouseout);
 
@@ -382,8 +391,8 @@ function drawChildLink(d) {
 
 function setSelectedColor(color) {
   return function () {
-    if (node_clicked_id == null) return;
-    nodeById.get(node_clicked_id).color = color;
+    if (node_selected_id == null) return;
+    nodeById.get(node_selected_id).color = color;
     shapes.style("fill", d => COLOR_MAP.get(d.color))
       .attr("stroke", d => BORDER_COLOR_MAP.get(d.color))
       .attr("stroke-width", d => d.selected ? "4px" : "0px");
@@ -394,9 +403,10 @@ function setSelectedColor(color) {
 const data_menu = document.getElementById("input_container");
 const data_input = document.getElementById("nodeData");
 data_input.disabled = true;
+data_menu.style = "display: none;";
 data_input.oninput = function(ev) {
-  if (node_clicked_id == null) return;
-  nodeById.get(node_clicked_id).label = data_input.value;
+  if (node_selected_id == null) return;
+  nodeById.get(node_selected_id).label = data_input.value;
   text.text(d => d.label);
 };
 data_input.value = "";
@@ -430,10 +440,10 @@ function tick() {
 function addNode() {
   nodes.push({id: max_node_id + 1, x: mouseX, y: mouseY, r: RADIUS, label: max_node_id + 1, color: NONE, selected: true});
   max_node_id += 1;
-  if (node_clicked_id != null) {
-    nodeById.get(node_clicked_id).selected = false;
+  if (node_selected_id != null) {
+    nodeById.get(node_selected_id).selected = false;
   } 
-  node_clicked_id = max_node_id;
+  node_selected_id = max_node_id;
   data_input.value = max_node_id;
   none_button.checked = true;
   red_button.checked = false;
@@ -442,6 +452,7 @@ function addNode() {
   red_button.disabled = false;
   black_button.disabled = false;
   data_input.disabled = false;
+  data_menu.style = "position: absolute; left:5%; top:5%;";
   redraw();
 }
 
@@ -449,16 +460,17 @@ function deleteNode(node_id) {
   nodes = nodes.filter(d => d.id != node_id);
   bst_edges = bst_edges.filter(d => d.parent.id != node_id && d.child.id != node_id);
   redraw();
-  if (node_id == node_clicked_id) {
+  if (node_id == node_selected_id) {
     data_input.value = "";
     none_button.checked = false;
     red_button.checked = false;
     black_button.checked = false;
     data_input.disabled = true;
+    data_menu.style = "display: none;";
     none_button.disabled = true;
     red_button.disabled = true;
     black_button.disabled = true;
-    node_clicked_id = null;
+    node_selected_id = null;
   }
 }
 
@@ -537,15 +549,15 @@ function addEdge(parent_id, child_id, type) {
 }
 
 function selectNode(node_id) {
-  if (node_clicked_id != null) {
-    nodeById.get(node_clicked_id).selected = false;
+  if (node_selected_id != null) {
+    nodeById.get(node_selected_id).selected = false;
   }
   let node_data = nodeById.get(node_id);
   node_data.selected = true;
 
   node.selectAll(".nodeShape").attr("stroke-width", d => d.selected ? "4px" : "0px");
 
-  node_clicked_id = node_id;
+  node_selected_id = node_id;
   
   data_input.value = node_data.label;
   none_button.checked = false;
@@ -562,12 +574,13 @@ function selectNode(node_id) {
   red_button.disabled = false;
   black_button.disabled = false;
   data_input.disabled = false;
+  data_menu.style = "position: absolute; left:5%; top:5%;";
 }
 
 function deselectNode() {
-  if (node_clicked_id == null) return;
-  nodeById.get(node_clicked_id).selected = false;
-  node_clicked_id = null;
+  if (node_selected_id == null) return;
+  nodeById.get(node_selected_id).selected = false;
+  node_selected_id = null;
   redraw();
   none_button.disabled = true;
   red_button.disabled = true;
@@ -577,6 +590,7 @@ function deselectNode() {
   black_button.checked = false;
   data_input.disabled = true;
   data_input.value = "";
+  data_menu.style = "display: none;";
 }
 
 d3.select("body")
@@ -593,10 +607,6 @@ d3.select("body")
         deleteEdge(edge_hover_id);
         edge_hover_id = null;
       }
-    } else if (e.key == "Control") {
-      if (node_hover_id != null) {
-
-      }
     }
   })
   .on('mousemove', function (e) {
@@ -608,8 +618,8 @@ d3.select("body")
 
     // If there is a selected node, deselect it if the click isn't on either
     // the data menu, the edit context menu, or on the node itself
-    if (!data_menu.contains(e.target) && !context_edit_node.contains(e.target) && node_clicked_id != null) {
-      let sel_node = node.filter(d => d.id == node_clicked_id).nodes()[0];
+    if (!data_menu.contains(e.target) && !context_edit_node.contains(e.target) && node_selected_id != null) {
+      let sel_node = node.filter(d => d.id == node_selected_id).nodes()[0];
       if (!sel_node.contains(e.target)) {
         deselectNode();
       }
@@ -619,6 +629,12 @@ d3.select("body")
       edge_start_id = null;
       child_type = null;
       draw_edge.attr("d", "");
+    }
+
+    if (edge_selected_id != null) {
+      edgeById.get(edge_selected_id).selected = false;
+      link.attr("class", d => d.selected ? "link-selected" : "link");
+      edge_selected_id = null;
     }
   });
 
