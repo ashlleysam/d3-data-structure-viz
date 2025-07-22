@@ -201,6 +201,7 @@ let text = node
 
 function redraw() {
   nodeById = new Map(nodes.map((d, i) => [d.id, d]));
+  edgeById = new Map(bst_edges.map((d, i) => [d.id, d]));
   recomputeSpacing(nodes, bst_edges);
   simulation
     .nodes(nodes)
@@ -356,6 +357,10 @@ d3.select("body")
           node_clicked_id = null;
         }
         node_hover_id = null;
+      } else if (edge_hover_id != null) {
+        bst_edges = bst_edges.filter(d => d.id != edge_hover_id);
+        redraw();
+        edge_hover_id = null;
       }
     } else if (e.key == "Control") {
       console.log(e.key);
