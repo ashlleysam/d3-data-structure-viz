@@ -1,4 +1,5 @@
 import * as d3 from "https://cdn.jsdelivr.net/npm/d3@7/+esm";
+import { SnackBar } from "./modules/js-snackbar.js";
 
 const ESCAPE = "Escape";
 const RED = "red";
@@ -110,18 +111,19 @@ function recomputeSpacing(nodes, links) {
   roots.forEach(get_widths);
 }
 
-const snackbar = document.getElementById("snackbar");
-function showSnackbar(text, time_ms = 3000) {
-  snackbar.className = "show";
-  snackbar.textContent = text;
-  setTimeout(function(){
-    snackbar.className = "";
-    snackbar.textContent = "";
-  }, time_ms);
+function showSnackbar(message, time_ms = 3000) {
+  SnackBar({
+    message: message,
+    dismissible: true,
+    timeout: time_ms,
+    status: "error",
+    container: "body",
+    position: "tm"
+  });
 }
 
-var width = window.innerWidth,
-    height = window.innerHeight;
+var width = window.innerWidth
+var height = window.innerHeight;
 const context_menu = document.getElementById("contextMenu");
 const context_add_node = document.getElementById("menu-item-add-node");
 const context_delete_node = document.getElementById("menu-item-delete-node");
