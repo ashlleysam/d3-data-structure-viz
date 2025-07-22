@@ -12,7 +12,9 @@ const BORDER_COLOR_MAP = new Map([[RED, "black"], [BLACK, "white"], [NONE, "blac
 const RADIUS = 50;
 const NODE_SEP_X = 120;
 const NODE_SEP_Y = 150;
-let last_clicked_id = null;
+let node_clicked_id = null;
+let node_hover_id = null;
+let edge_hover_id = null;
 let max_id = 0;
 
 // Apply a force to align the nodes into a binary tree
@@ -125,16 +127,17 @@ nodes.forEach(node => {
 });
 
 let bst_edges = [
-  {parent: 1, child: 0, type: "left", selected: false},
-  {parent: 1, child: 3, type: "right", selected: false},
-  {parent: 3, child: 4, type: "right", selected: false},
-  {parent: 3, child: 2, type: "left", selected: false},
-  {parent: 0, child: 5, type: "right", selected: false},
-  {parent: 2, child: 6, type: "left", selected: false},
-  {parent: 5, child: 7, type: "right", selected: false},
+  {id: 0, parent: 1, child: 0, type: "left", selected: false},
+  {id: 1, parent: 1, child: 3, type: "right", selected: false},
+  {id: 2, parent: 3, child: 4, type: "right", selected: false},
+  {id: 3, parent: 3, child: 2, type: "left", selected: false},
+  {id: 4, parent: 0, child: 5, type: "right", selected: false},
+  {id: 5, parent: 2, child: 6, type: "left", selected: false},
+  {id: 6, parent: 5, child: 7, type: "right", selected: false},
 ]
 
 let nodeById = new Map(nodes.map((d, i) => [d.id, d]));
+let edgeById = new Map(bst_edges.map((d, i) => [d.id, d]));
 
 recomputeSpacing(nodes, bst_edges);
 
@@ -162,7 +165,9 @@ let link = g_link
   .data(bst_edges)
   .enter()
   .append("path")
-  .attr("class", "link");
+  .attr("class", "link")
+  .on("mouseover", edge_onmouseover)
+  .on("mouseout", edge_onmouseout);
 
 let g_node = svg.append("g").attr("class", "nodes");
 let node = g_node
@@ -171,17 +176,10 @@ let node = g_node
   .enter()
   .append("g")
   .attr("class", "node")
+  .on("mouseover", node_onmouseover)
+  .on("mouseout", node_onmouseout)
   .on("dblclick", node_dblclick)
-  .on("onclick",
-    function(e, d) {
-      console.log("Hello");
-      console.log(e);
-    }
-  )
-  .call(d3.drag().on("start", dragstarted).on("drag", dragged).on("end", dragended))
-  .on('mouseover', function(e, d) {
-    d3.select(this).raise();
-  });
+  .call(d3.drag().on("start", dragstarted).on("drag", dragged).on("end", dragended));
 
 let shapes = node
   .append("circle")
@@ -211,15 +209,24 @@ function redraw() {
 
   var update_nodes = g_node.selectAll(".node").data(nodes);
 
+  // node = update_nodes
+  //   .enter()
+  //   .append("g")
+  //   .attr("class", "node")
+  //   .on("dblclick", node_dblclick)
+  //   .call(d3.drag().on("start", dragstarted).on("drag", dragged).on("end", dragended))
+  //   .on('mouseover', function(e, d) {
+  //     d3.select(this).raise();
+  //   })
+  //   .merge(update_nodes);
   node = update_nodes
     .enter()
     .append("g")
     .attr("class", "node")
+    .on("mouseover", node_onmouseover)
+    .on("mouseout", node_onmouseout)
     .on("dblclick", node_dblclick)
     .call(d3.drag().on("start", dragstarted).on("drag", dragged).on("end", dragended))
-    .on('mouseover', function(e, d) {
-      d3.select(this).raise();
-    })
     .merge(update_nodes);
 
   node.selectAll("*").remove();
@@ -264,8 +271,8 @@ function drawChildLink(d) {
 
 function setSelectedColor(color) {
   return function () {
-    if (last_clicked_id == null) return;
-    nodeById.get(last_clicked_id).color = color;
+    if (node_clicked_id == null) return;
+    nodeById.get(node_clicked_id).color = color;
     shapes.style("fill", d => COLOR_MAP.get(d.color))
       .attr("stroke", d => BORDER_COLOR_MAP.get(d.color))
       .attr("stroke-width", d => d.selected ? "4px" : "0px");
@@ -276,8 +283,8 @@ function setSelectedColor(color) {
 const data_input = document.getElementById("nodeData");
 data_input.disabled = true;
 data_input.oninput = function(ev) {
-  if (last_clicked_id == null) return;
-  nodeById.get(last_clicked_id).label = data_input.value;
+  if (node_clicked_id == null) return;
+  nodeById.get(node_clicked_id).label = data_input.value;
   text.text(d => d.label);
 };
 data_input.value = "";
@@ -303,9 +310,9 @@ var mouseX, mouseY = null;
 
 d3.select("body")
   .on("keydown", function(e) {
-    if (e.key == ESCAPE && last_clicked_id != null) {
-      nodeById.get(last_clicked_id).selected = false;
-      last_clicked_id = null;
+    if (e.key == ESCAPE && node_clicked_id != null) {
+      nodeById.get(node_clicked_id).selected = false;
+      node_clicked_id = null;
       redraw();
       none_button.disabled = true;
       red_button.disabled = true;
@@ -318,10 +325,10 @@ d3.select("body")
     } else if (e.key == 'n') {
       nodes.push({id: max_id + 1, x: mouseX, y: mouseY, r: RADIUS, label: max_id + 1, color: NONE, selected: true});
       max_id += 1;
-      if (last_clicked_id != null) {
-        nodeById.get(last_clicked_id).selected = false;
+      if (node_clicked_id != null) {
+        nodeById.get(node_clicked_id).selected = false;
       } 
-      last_clicked_id = max_id;
+      node_clicked_id = max_id;
       data_input.value = max_id;
       none_button.checked = true;
       red_button.checked = false;
@@ -332,19 +339,24 @@ d3.select("body")
       data_input.disabled = false;
       redraw();
     } else if (e.key == 'd') {
-      if (last_clicked_id == null) return;
-      nodes = nodes.filter(d => d.id != last_clicked_id);
-      bst_edges = bst_edges.filter(d => d.parent.id != last_clicked_id && d.child.id != last_clicked_id);
-      redraw();
-      last_clicked_id = null;
-      data_input.value = "";
-      none_button.checked = false;
-      red_button.checked = false;
-      black_button.checked = false;
-      data_input.disabled = true;
-      none_button.disabled = true;
-      red_button.disabled = true;
-      black_button.disabled = true;
+      if (node_hover_id != null) {
+        nodes = nodes.filter(d => d.id != node_hover_id);
+        bst_edges = bst_edges.filter(d => d.parent.id != node_hover_id && d.child.id != node_hover_id);
+        redraw();
+        console.log(node_hover_id, node_clicked_id);
+        if (node_hover_id == node_clicked_id) {
+          data_input.value = "";
+          none_button.checked = false;
+          red_button.checked = false;
+          black_button.checked = false;
+          data_input.disabled = true;
+          none_button.disabled = true;
+          red_button.disabled = true;
+          black_button.disabled = true;
+          node_clicked_id = null;
+        }
+        node_hover_id = null;
+      }
     } else if (e.key == "Control") {
       console.log(e.key);
     }
@@ -354,14 +366,14 @@ d3.select("body")
   });
 
 function node_dblclick(event, d) {
-  if (last_clicked_id != null) {
-    nodeById.get(last_clicked_id).selected = false;
+  if (node_clicked_id != null) {
+    nodeById.get(node_clicked_id).selected = false;
   }
   d.selected = true;
 
   node.selectAll(".nodeShape").attr("stroke-width", d => d.selected ? "4px" : "0px");
 
-  last_clicked_id = d.id;
+  node_clicked_id = d.id;
 
   data_input.value = d.label;
   none_button.checked = false;
@@ -379,6 +391,34 @@ function node_dblclick(event, d) {
   black_button.disabled = false;
   data_input.disabled = false;
 }
+
+function node_onmouseover(event, d) {
+  console.log("In: ", d.label);
+  d3.select(this).raise();
+  node_hover_id = d.id;
+}
+
+function node_onmouseout(event, d) {
+  console.log("Out: ", d.label);
+  node_hover_id = null;
+}
+
+function edge_onmouseover(event, d) {
+  console.log("In Edge: ", d);
+  if (edge_hover_id != null) {
+    edgeById.get(edge_hover_id).selected = false;
+  }
+  d.selected = true;
+
+  edge_hover_id = d.id;
+}
+
+function edge_onmouseout(event, d) {
+  console.log("Out Edge: ", d);
+  d.selected = false;
+  edge_hover_id = null;
+}
+
 
 function dragstarted(event) {
   // if (!event.active) simulation.alphaTarget(0.3).restart();
