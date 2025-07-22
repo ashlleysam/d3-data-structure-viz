@@ -294,6 +294,7 @@ function setSelectedColor(color) {
   };
 }
 
+const data_menu = document.getElementById("input_container");
 const data_input = document.getElementById("nodeData");
 data_input.disabled = true;
 data_input.oninput = function(ev) {
@@ -340,25 +341,30 @@ function addNode() {
   redraw();
 }
 
-document.getElementById("menu-item-add-node").onclick = function() {
+function deselectNode() {
+  if (node_clicked_id == null) return;
+  nodeById.get(node_clicked_id).selected = false;
+  node_clicked_id = null;
+  redraw();
+  none_button.disabled = true;
+  red_button.disabled = true;
+  black_button.disabled = true;
+  none_button.checked = false;
+  red_button.checked = false;
+  black_button.checked = false;
+  data_input.disabled = true;
+  data_input.value = "";
+}
+
+document.getElementById("menu-item-add-node").onclick = function(e) {
   hideContextMenu();
   addNode();
 }
 
 d3.select("body")
   .on("keydown", function(e) {
-    if (e.key == ESCAPE && node_clicked_id != null) {
-      nodeById.get(node_clicked_id).selected = false;
-      node_clicked_id = null;
-      redraw();
-      none_button.disabled = true;
-      red_button.disabled = true;
-      black_button.disabled = true;
-      none_button.checked = false;
-      red_button.checked = false;
-      black_button.checked = false;
-      data_input.disabled = true;
-      data_input.value = "";
+    if (e.key == ESCAPE) {
+      deselectNode();
     } else if (e.key == 'n') {
       addNode();
     } else if (e.key == 'd') {
@@ -394,7 +400,16 @@ d3.select("body")
     [mouseX, mouseY] = d3.pointer(e);
   })
   .on("click", function(e) {
-    console.log("body.onclick");
+    // Always hide the context menu on the next click
+    hideContextMenu();
+
+    // If there is a selected node, deselect it if the click
+    // is not on the edit menu or the node itself
+    if (data_menu.contains(e.target)) return;
+    if (node_clicked_id == null) return;
+    let sel_node = node.filter(d => d.id == node_clicked_id).nodes()[0];
+    if (sel_node.contains(e.target)) return;
+    deselectNode();
   });
 
 function node_dblclick(event, d) {
