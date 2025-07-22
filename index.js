@@ -14,7 +14,6 @@ const RADIUS = 50;
 const NODE_SEP_X = 120;
 const NODE_SEP_Y = 150;
 let node_selected_id = null;
-let edge_selected_id = null;
 let node_hover_id = null;
 let edge_hover_id = null;
 let max_node_id = 0;
@@ -157,7 +156,6 @@ function showContextMenu(e) {
     context_delete_edge.style = "";
     edgeById.get(edge_hover_id).selected = true;
     link.attr("class", d => d.selected ? "link-selected" : "link");
-    edge_selected_id = edge_hover_id;
   } else {
     context_delete_edge.style = "display: none;";
   }
@@ -193,6 +191,7 @@ context_delete_node.onclick = function(e) {
 
 context_delete_edge.onclick = function(e) {
   hideContextMenu();
+
   if (ctx_menu_select_edge_id != null) {
     deleteEdge(ctx_menu_select_edge_id);
     ctx_menu_select_edge_id = null;
@@ -286,7 +285,7 @@ window.onresize = function() {
 
 let g_link = svg.append("g").attr("class", "links");
 let link = g_link
-  .selectAll(".link")
+  .selectAll(".link,.link-selected")
   .data(bst_edges)
   .enter()
   .append("path")
@@ -374,12 +373,12 @@ function redraw() {
 
   update_nodes.exit().remove();
 
-  var update_links = g_link.selectAll(".link").data(bst_edges);
+  var update_links = g_link.selectAll(".link,.link-selected").data(bst_edges);
   update_links.exit().remove();
   link = update_links
     .enter()
     .append("path")
-    .attr("class", "link")
+    .attr("class", d => d.selected ? "link-selected" : "link")
     .on("mouseover", edge_onmouseover)
     .on("mouseout", edge_onmouseout)
     .merge(update_links);
@@ -402,8 +401,7 @@ function setSelectedColor(color) {
 
 const data_menu = document.getElementById("input_container");
 const data_input = document.getElementById("nodeData");
-data_input.disabled = true;
-data_menu.style = "display: none;";
+disable_edit_menu();
 data_input.oninput = function(ev) {
   if (node_selected_id == null) return;
   nodeById.get(node_selected_id).label = data_input.value;
@@ -424,6 +422,16 @@ red_button.disabled = true;
 black_button.disabled = true;
 
 var mouseX, mouseY = null;
+
+function disable_edit_menu() {
+  data_input.disabled = true;
+  data_menu.style = "display: none;";
+}
+
+function enable_edit_menu() {
+  data_input.disabled = false;
+  data_menu.style = "position: absolute; left:5%; top:5%;";
+}
 
 function tick() {
   link.attr("d", d => drawChildLink(d))
@@ -451,8 +459,7 @@ function addNode() {
   none_button.disabled = false;
   red_button.disabled = false;
   black_button.disabled = false;
-  data_input.disabled = false;
-  data_menu.style = "position: absolute; left:5%; top:5%;";
+  enable_edit_menu();
   redraw();
 }
 
@@ -465,8 +472,7 @@ function deleteNode(node_id) {
     none_button.checked = false;
     red_button.checked = false;
     black_button.checked = false;
-    data_input.disabled = true;
-    data_menu.style = "display: none;";
+    disable_edit_menu();
     none_button.disabled = true;
     red_button.disabled = true;
     black_button.disabled = true;
@@ -477,6 +483,7 @@ function deleteNode(node_id) {
 function deleteEdge(edge_id) {
   bst_edges = bst_edges.filter(d => d.id != edge_id);
   redraw();
+  link.attr("class", d => d.selected ? "link-selected" : "link");
 }
 
 function addEdge(parent_id, child_id, type) {
@@ -573,8 +580,7 @@ function selectNode(node_id) {
   none_button.disabled = false;
   red_button.disabled = false;
   black_button.disabled = false;
-  data_input.disabled = false;
-  data_menu.style = "position: absolute; left:5%; top:5%;";
+  enable_edit_menu();
 }
 
 function deselectNode() {
@@ -588,9 +594,7 @@ function deselectNode() {
   none_button.checked = false;
   red_button.checked = false;
   black_button.checked = false;
-  data_input.disabled = true;
-  data_input.value = "";
-  data_menu.style = "display: none;";
+  disable_edit_menu();
 }
 
 d3.select("body")
@@ -629,12 +633,6 @@ d3.select("body")
       edge_start_id = null;
       child_type = null;
       draw_edge.attr("d", "");
-    }
-
-    if (edge_selected_id != null) {
-      edgeById.get(edge_selected_id).selected = false;
-      link.attr("class", d => d.selected ? "link-selected" : "link");
-      edge_selected_id = null;
     }
   });
 
