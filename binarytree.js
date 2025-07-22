@@ -83,7 +83,7 @@ export class BinaryTree {
 
     deleteNode(id) {
         this.nodes = this.nodes.filter(d => d.id !== id);
-        this.bst_edges = this.bst_edges.filter(d => d.parent !== d.id && d.child !== d.id);
+        this.bst_edges = this.bst_edges.filter(d => d.parent.id !== id && d.child.id !== id);
         this.nodes_by_id.delete(id);
         this.edges_by_id = new Map(this.bst_edges.map((d, i) => [d.id, d]));
         this.recompute();
