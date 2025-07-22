@@ -1,5 +1,6 @@
 import * as d3 from "https://cdn.jsdelivr.net/npm/d3@7/+esm";
 import { SnackBar } from "./modules/js-snackbar.js";
+import { BinaryTree } from "./binarytree.js";
 
 const ESCAPE = "Escape";
 const RED = "red";
@@ -11,116 +12,13 @@ const COLOR_MAP = new Map([[RED, RED_COLOR], [BLACK, BLACK_COLOR], [NONE, "white
 const TEXT_COLOR_MAP = new Map([[RED, "white"], [BLACK, "white"], [NONE, "black"]]);
 const BORDER_COLOR_MAP = new Map([[RED, "black"], [BLACK, "white"], [NONE, "black"]]);
 const RADIUS = 50;
-const NODE_SEP_X = 120;
+const NODE_SEP_X = 70;
 const NODE_SEP_Y = 150;
 let node_selected_id = null;
 let node_hover_id = null;
 let edge_hover_id = null;
-let max_node_id = 0;
-let max_edge_id = 0;
-let nodeById = null;
-let edgeById = null;
-let nodes = null;
-let bst_edges = null;
 let edge_start_id = null;
 let child_type = null;
-
-// Apply a force to align the nodes into a binary tree
-function forceBinaryTree(links, strength = 0.1) {
-  var nodes, nodeById;
-
-  function initialize() {
-    if (!nodes) return;
-
-    nodeById = new Map(nodes.map((d, i) => [d.id, d]));
-
-    links.forEach(link => {
-      if (typeof link.parent !== "object") link.parent = nodeById.get(link.parent);
-      if (typeof link.child !== "object") link.child = nodeById.get(link.child);
-    });
-  }
-
-  function force(alpha) {
-    links.forEach(link => {
-      let par = link.parent;
-      let child = link.child;
-      // The position we want to move the child to
-      let expect_x = par.x;
-      if (link.type == "left") {
-        expect_x -= child.bst_width_right + NODE_SEP_X;
-      } else {
-        expect_x += child.bst_width_left + NODE_SEP_X;
-      }
-      let expect_y = par.y + NODE_SEP_Y;
-      // Modify the velocity to move it towards the desired location
-      // x alignment is slightly more important, so make the force stronger
-      child.vx += (expect_x - child.x) * strength * 1.05 * alpha;
-      child.vy += (expect_y - child.y) * strength * alpha;
-    });
-  }
-
-  force.initialize = function(_nodes, _random) {
-    nodes = _nodes;
-    initialize();
-  };
-
-  return force;
-}
-
-// Compute the spacing needed to ensure tree nodes don't overlap
-function recomputeSpacing(nodes, links) {
-  let nodeById = new Map(nodes.map((d, i) => [d.id, d]));
-  links.forEach(link => {
-    if (typeof link.parent !== "object") link.parent = nodeById.get(link.parent);
-    if (typeof link.child !== "object") link.child = nodeById.get(link.child);
-  });
-  // Convert edge list to adjacency list
-  let leftChild = new Map();
-  let rightChild = new Map();
-  // Find root node(s)
-  let roots = new Set(nodes.map((d, i) => d.id));
-  links.forEach(link => {
-    roots.delete(link.child.id);
-    (link.type == "left" ? leftChild : rightChild).set(link.parent.id, link.child.id);
-  });
-
-  // Recursively compute the width needed to ensure
-  // that the subtrees don't overlap
-  function get_widths(id) {
-    let par_node = nodeById.get(id);
-    if (leftChild.has(id)) {
-      get_widths(leftChild.get(id));
-    }
-    if (rightChild.has(id)) {
-      get_widths(rightChild.get(id));
-    }
-    let left = leftChild.has(id) ? nodeById.get(leftChild.get(id)) : null;
-    let right = rightChild.has(id) ? nodeById.get(rightChild.get(id)) : null;
-    par_node.bst_width_left = 0;
-    par_node.bst_width_right = 0;
-    // If there is a left or right child, the parent needs
-    // enough space to hold that child's subtree plus some padding
-    if (left != null) {
-      par_node.bst_width_left = NODE_SEP_X + left.bst_width;
-    }
-    if (right != null) {
-      par_node.bst_width_right = NODE_SEP_X + right.bst_width;
-    }
-    par_node.bst_width = par_node.bst_width_left + par_node.bst_width_right;
-  }
-  roots.forEach(get_widths);
-}
-
-function showSnackbar(message, time_ms = 3000) {
-  SnackBar({
-    message: message,
-    dismissible: true,
-    timeout: time_ms,
-    status: "error",
-    container: "body",
-    position: "tm"
-  });
-}
 
 var width = window.innerWidth
 var height = window.innerHeight;
@@ -133,40 +31,6 @@ const context_add_right_child = document.getElementById("menu-item-add-right-chi
 const context_delete_edge = document.getElementById("menu-item-delete-edge");
 let ctx_menu_select_node_id = null;
 let ctx_menu_select_edge_id = null;
-
-function showContextMenu(e) {
-  context_menu.style = `width: 300px; left: ${e.pageX}px; top: ${e.pageY}px;`;
-  context_add_node.style = node_hover_id == null && edge_hover_id == null ? "" : "display: none;";
-  context_delete_node.style = node_hover_id == null ? "display: none;" : "";
-  context_edit_node.style = node_hover_id == null ? "display: none;" : "";
-  if (node_hover_id != null) {
-    let leftChild = new Map();
-    let rightChild = new Map();
-    bst_edges.forEach(link => {
-      (link.type == "left" ? leftChild : rightChild).set(link.parent.id, link.child.id);
-    });
-    context_add_left_child.style = leftChild.has(node_hover_id) ? "display: none;" : "";
-    context_add_right_child.style = rightChild.has(node_hover_id) ? "display: none;" : "";
-  } else {
-    context_add_left_child.style = "display: none;";
-    context_add_right_child.style = "display: none;";
-  }
-
-  if (node_hover_id == null && edge_hover_id != null) {
-    context_delete_edge.style = "";
-    edgeById.get(edge_hover_id).selected = true;
-    link.attr("class", d => d.selected ? "link-selected" : "link");
-  } else {
-    context_delete_edge.style = "display: none;";
-  }
-  
-  ctx_menu_select_node_id = node_hover_id;
-  ctx_menu_select_edge_id = edge_hover_id;
-}
-
-function hideContextMenu() {
-  context_menu.style = `width: 0px; left: 0px; top: 0px; display: none;`;
-}
 
 context_add_node.onclick = function(e) {
   hideContextMenu();
@@ -231,7 +95,7 @@ let svg = d3.select("#d3_container")
     e.preventDefault();
   });
 
-nodes = [
+let tree = new BinaryTree([
     {id: 0, x: 0, y: 0, r: RADIUS, label: "0", color: RED, selected: false}, 
     {id: 1, x: 0, y: 0, r: RADIUS, label: "1", color: BLACK, selected: false}, 
     {id: 2, x: 380, y: 100, r: RADIUS, label: "2", color: NONE, selected: false},
@@ -240,40 +104,24 @@ nodes = [
     {id: 5, x: 380, y: 100, r: RADIUS, label: "5", color: RED, selected: false},
     {id: 6, x: 380, y: 100, r: RADIUS, label: "6", color: "black", selected: false},
     {id: 7, x: 380, y: 100, r: RADIUS, label: "7", color: "black", selected: false},
-];
+  ],
+  [
+    {id: 0, parent: 1, child: 0, type: "left", selected: false},
+    {id: 1, parent: 1, child: 3, type: "right", selected: false},
+    {id: 2, parent: 3, child: 4, type: "right", selected: false},
+    {id: 3, parent: 3, child: 2, type: "left", selected: false},
+    {id: 4, parent: 0, child: 5, type: "right", selected: false},
+    {id: 5, parent: 2, child: 6, type: "left", selected: false},
+    {id: 6, parent: 5, child: 7, type: "right", selected: false},
+  ],
+  NODE_SEP_X);
 
-nodes.forEach(node => {
-    max_node_id = Math.max(max_node_id, node.id);
-});
-
-bst_edges = [
-  {id: 0, parent: 1, child: 0, type: "left", selected: false},
-  {id: 1, parent: 1, child: 3, type: "right", selected: false},
-  {id: 2, parent: 3, child: 4, type: "right", selected: false},
-  {id: 3, parent: 3, child: 2, type: "left", selected: false},
-  {id: 4, parent: 0, child: 5, type: "right", selected: false},
-  {id: 5, parent: 2, child: 6, type: "left", selected: false},
-  {id: 6, parent: 5, child: 7, type: "right", selected: false},
-]
-
-bst_edges.forEach(edge => {
-    max_edge_id = Math.max(max_edge_id, edge.id);
-});
-
-nodeById = new Map(nodes.map((d, i) => [d.id, d]));
-edgeById = new Map(bst_edges.map((d, i) => [d.id, d]));
-
-recomputeSpacing(nodes, bst_edges);
-
-let simulation = d3
-  .forceSimulation(nodes)
+const simulation = d3
+  .forceSimulation(tree.nodes)
   .alphaTarget(0.3)
-  // .force("repulse", d3.forceManyBody().strength(-120))
-  // .force("x_central", d3.forceX(width / 2).strength(0.001))
-  // .force("y_central", d3.forceY(height / 2).strength(0.001))
   .force("center", d3.forceCenter(width/2,height/2))
   .force("collide", d3.forceCollide(d => d.r))
-  .force("BST", forceBinaryTree(bst_edges))
+  .force("BST", forceBinaryTree(tree))
   .on("tick", tick);
 
 window.onresize = function() {
@@ -286,7 +134,7 @@ window.onresize = function() {
 let g_link = svg.append("g").attr("class", "links");
 let link = g_link
   .selectAll(".link,.link-selected")
-  .data(bst_edges)
+  .data(tree.bst_edges)
   .enter()
   .append("path")
   .attr("class", d => d.selected ? "link-selected" : "link")
@@ -299,7 +147,7 @@ let draw_edge = g_misc.append("path").attr("class", "link-no-hover");
 let g_node = svg.append("g").attr("class", "nodes");
 let node = g_node
   .selectAll(".node")
-  .data(nodes)
+  .data(tree.nodes)
   .enter()
   .append("g")
   .attr("class", "node")
@@ -327,16 +175,37 @@ let text = node
   .attr("font-family", "sans-serif")
   .attr("fill", d => TEXT_COLOR_MAP.get(d.color));
 
+const data_menu = document.getElementById("input_container");
+const data_input = document.getElementById("nodeData");
+disable_edit_menu();
+data_input.oninput = function(ev) {
+  if (node_selected_id == null) return;
+  tree.getNodeById(node_selected_id).label = data_input.value;
+  text.text(d => d.label);
+};
+data_input.value = "";
+const none_button = document.getElementById("noneButton");
+none_button.onclick = setSelectedColor(NONE);
+const red_button = document.getElementById("redButton");
+red_button.onclick = setSelectedColor(RED);
+const black_button = document.getElementById("blackButton");
+black_button.onclick = setSelectedColor(BLACK);
+none_button.checked = false;
+red_button.checked = false;
+black_button.checked = false;
+none_button.disabled = true;
+red_button.disabled = true;
+black_button.disabled = true;
+
+var mouseX, mouseY = null;
+
 function redraw() {
-  nodeById = new Map(nodes.map((d, i) => [d.id, d]));
-  edgeById = new Map(bst_edges.map((d, i) => [d.id, d]));
-  recomputeSpacing(nodes, bst_edges);
   simulation
-    .nodes(nodes)
-    .force("BST", forceBinaryTree(bst_edges))
+    .nodes(tree.nodes)
+    .force("BST", forceBinaryTree(tree))
     .alphaTarget(0.3);
 
-  var update_nodes = g_node.selectAll(".node").data(nodes);
+  var update_nodes = g_node.selectAll(".node").data(tree.nodes);
 
   node = update_nodes
     .enter()
@@ -373,7 +242,7 @@ function redraw() {
 
   update_nodes.exit().remove();
 
-  var update_links = g_link.selectAll(".link,.link-selected").data(bst_edges);
+  var update_links = g_link.selectAll(".link,.link-selected").data(tree.bst_edges);
   update_links.exit().remove();
   link = update_links
     .enter()
@@ -382,219 +251,6 @@ function redraw() {
     .on("mouseover", edge_onmouseover)
     .on("mouseout", edge_onmouseout)
     .merge(update_links);
-}
-
-function drawChildLink(d) {
-  return `M ${d.parent.x},${d.parent.y} Q${d.child.x},${d.parent.y} ${d.child.x},${d.child.y}`
-}
-
-function setSelectedColor(color) {
-  return function () {
-    if (node_selected_id == null) return;
-    nodeById.get(node_selected_id).color = color;
-    shapes.style("fill", d => COLOR_MAP.get(d.color))
-      .attr("stroke", d => BORDER_COLOR_MAP.get(d.color))
-      .attr("stroke-width", d => d.selected ? "4px" : "0px");
-    text.attr("fill", d => TEXT_COLOR_MAP.get(d.color));
-  };
-}
-
-const data_menu = document.getElementById("input_container");
-const data_input = document.getElementById("nodeData");
-disable_edit_menu();
-data_input.oninput = function(ev) {
-  if (node_selected_id == null) return;
-  nodeById.get(node_selected_id).label = data_input.value;
-  text.text(d => d.label);
-};
-data_input.value = "";
-const none_button = document.getElementById("noneButton");
-none_button.onclick = setSelectedColor(NONE);
-const red_button = document.getElementById("redButton");
-red_button.onclick = setSelectedColor(RED);
-const black_button = document.getElementById("blackButton");
-black_button.onclick = setSelectedColor(BLACK);
-none_button.checked = false;
-red_button.checked = false;
-black_button.checked = false;
-none_button.disabled = true;
-red_button.disabled = true;
-black_button.disabled = true;
-
-var mouseX, mouseY = null;
-
-function disable_edit_menu() {
-  data_input.disabled = true;
-  data_menu.style = "display: none;";
-}
-
-function enable_edit_menu() {
-  data_input.disabled = false;
-  data_menu.style = "position: absolute; left:5%; top:5%;";
-}
-
-function tick() {
-  link.attr("d", d => drawChildLink(d))
-  node.attr("transform", d => `translate(${d.x},${d.y})`);
-
-  if (edge_start_id == null) {
-    draw_edge.attr("d", "");
-  } else {
-    let edge_start = nodeById.get(edge_start_id);
-    draw_edge.attr("d", `M ${edge_start.x},${edge_start.y} Q${mouseX},${edge_start.y} ${mouseX},${mouseY}`);
-  }
-}
-
-function addNode() {
-  nodes.push({id: max_node_id + 1, x: mouseX, y: mouseY, r: RADIUS, label: max_node_id + 1, color: NONE, selected: true});
-  max_node_id += 1;
-  if (node_selected_id != null) {
-    nodeById.get(node_selected_id).selected = false;
-  } 
-  node_selected_id = max_node_id;
-  data_input.value = max_node_id;
-  none_button.checked = true;
-  red_button.checked = false;
-  black_button.checked = false;
-  none_button.disabled = false;
-  red_button.disabled = false;
-  black_button.disabled = false;
-  enable_edit_menu();
-  redraw();
-}
-
-function deleteNode(node_id) {
-  nodes = nodes.filter(d => d.id != node_id);
-  bst_edges = bst_edges.filter(d => d.parent.id != node_id && d.child.id != node_id);
-  redraw();
-  if (node_id == node_selected_id) {
-    data_input.value = "";
-    none_button.checked = false;
-    red_button.checked = false;
-    black_button.checked = false;
-    disable_edit_menu();
-    none_button.disabled = true;
-    red_button.disabled = true;
-    black_button.disabled = true;
-    node_selected_id = null;
-  }
-}
-
-function deleteEdge(edge_id) {
-  bst_edges = bst_edges.filter(d => d.id != edge_id);
-  redraw();
-  link.attr("class", d => d.selected ? "link-selected" : "link");
-}
-
-function addEdge(parent_id, child_id, type) {
-  // Check for existing parents and children
-  let leftChild = new Map();
-  let rightChild = new Map();
-  let parent = new Map();
-  let roots = new Set(nodes.map((d, i) => d.id));
-
-  bst_edges.forEach(link => {
-    (link.type == "left" ? leftChild : rightChild).set(link.parent.id, link.child.id);
-    parent.set(link.child.id, link.parent.id);
-    roots.delete(link.child.id);
-  });
-
-  if (type == "left" && leftChild.has(parent_id)) {
-    showSnackbar(`Node ${nodeById.get(parent_id).label} already has a left child`);
-    return;
-  }
-  if (type == "right" && rightChild.has(parent_id)) {
-    showSnackbar(`Node ${nodeById.get(parent_id).label} node already has a right child`);
-    return;
-  }
-  if (parent.has(child_id)) {
-    showSnackbar(`Node ${nodeById.get(child_id).label} already has a parent`);
-    return;
-  }
-
-  // Check for cycles
-  let bst_edges_added = [...bst_edges];
-  bst_edges_added.push({id: max_edge_id + 1, parent: nodeById.get(parent_id), child: nodeById.get(child_id), type: type, selected: false});
-  leftChild = new Map();
-  rightChild = new Map();
-  parent = new Map();
-  roots = new Set(nodes.map((d, i) => d.id));
-
-  bst_edges_added.forEach(link => {
-    (link.type == "left" ? leftChild : rightChild).set(link.parent.id, link.child.id);
-    parent.set(link.child.id, link.parent.id);
-  });
-
-  function check_cycle(node_id, path) {
-    if (path.includes(node_id)) {
-      return path.concat(node_id);
-    }
-    if (leftChild.has(node_id)) {
-      let left_res = check_cycle(leftChild.get(node_id), path.concat(node_id));
-      if (left_res != null) {
-        return left_res;
-      }
-    }
-    if (rightChild.has(node_id)) {
-      return check_cycle(rightChild.get(node_id), path.concat(node_id));
-    }
-    return null;
-  }
-
-  for (const id of roots) {
-    let res = check_cycle(id, []);
-    if (res != null) {
-      res = res.map(id => nodeById.get(id).label);
-      showSnackbar(`Adding this edge causes a loop: ${res}`, 5000);
-      return;
-    }
-  }
-  
-  bst_edges.push({id: max_edge_id + 1, parent: parent_id, child: child_id, type: type, selected: false});
-  max_edge_id += 1;
-  redraw();
-}
-
-function selectNode(node_id) {
-  if (node_selected_id != null) {
-    nodeById.get(node_selected_id).selected = false;
-  }
-  let node_data = nodeById.get(node_id);
-  node_data.selected = true;
-
-  node.selectAll(".nodeShape").attr("stroke-width", d => d.selected ? "4px" : "0px");
-
-  node_selected_id = node_id;
-  
-  data_input.value = node_data.label;
-  none_button.checked = false;
-  red_button.checked = false;
-  black_button.checked = false;
-  if (node_data.color == RED) {
-    red_button.checked = true;
-  } else if (node_data.color == BLACK) {
-    black_button.checked = true;
-  } else {
-    none_button.checked = true;
-  }
-  none_button.disabled = false;
-  red_button.disabled = false;
-  black_button.disabled = false;
-  enable_edit_menu();
-}
-
-function deselectNode() {
-  if (node_selected_id == null) return;
-  nodeById.get(node_selected_id).selected = false;
-  node_selected_id = null;
-  redraw();
-  none_button.disabled = true;
-  red_button.disabled = true;
-  black_button.disabled = true;
-  none_button.checked = false;
-  red_button.checked = false;
-  black_button.checked = false;
-  disable_edit_menu();
 }
 
 d3.select("body")
@@ -623,7 +279,7 @@ d3.select("body")
     // If there is a selected node, deselect it if the click isn't on either
     // the data menu, the edit context menu, or on the node itself
     if (!data_menu.contains(e.target) && !context_edit_node.contains(e.target) && node_selected_id != null) {
-      let sel_node = node.filter(d => d.id == node_selected_id).nodes()[0];
+      const sel_node = node.filter(d => d.id === node_selected_id).nodes()[0];
       if (!sel_node.contains(e.target)) {
         deselectNode();
       }
@@ -635,6 +291,198 @@ d3.select("body")
       draw_edge.attr("d", "");
     }
   });
+
+// Apply a force to align the nodes into a binary tree
+function forceBinaryTree(tree, strength = 0.1) {
+  function force(alpha) {
+    tree.bst_edges.forEach(link => {
+      let par = link.parent;
+      let child = link.child;
+      // The position we want to move the child to
+      let expect_x = par.x;
+      if (link.type == "left") {
+        expect_x -= child.bst_width_right + NODE_SEP_X;
+      } else {
+        expect_x += child.bst_width_left + NODE_SEP_X;
+      }
+      let expect_y = par.y + NODE_SEP_Y;
+      // Modify the velocity to move it towards the desired location
+      // x alignment is slightly more important, so make the force stronger
+      child.vx += (expect_x - child.x) * strength * 1.05 * alpha;
+      child.vy += (expect_y - child.y) * strength * alpha;
+    });
+  }
+
+  return force;
+}
+
+function showContextMenu(e) {
+  context_menu.style = `width: 300px; left: ${e.pageX}px; top: ${e.pageY}px;`;
+  context_add_node.style = node_hover_id == null && edge_hover_id == null ? "" : "display: none;";
+  context_delete_node.style = node_hover_id == null ? "display: none;" : "";
+  context_edit_node.style = node_hover_id == null ? "display: none;" : "";
+  if (node_hover_id != null) {
+    let leftChild = new Map();
+    let rightChild = new Map();
+    tree.bst_edges.forEach(link => {
+      (link.type == "left" ? leftChild : rightChild).set(link.parent.id, link.child.id);
+    });
+    context_add_left_child.style = leftChild.has(node_hover_id) ? "display: none;" : "";
+    context_add_right_child.style = rightChild.has(node_hover_id) ? "display: none;" : "";
+  } else {
+    context_add_left_child.style = "display: none;";
+    context_add_right_child.style = "display: none;";
+  }
+
+  if (node_hover_id == null && edge_hover_id != null) {
+    context_delete_edge.style = "";
+    tree.getEdgeById(edge_hover_id).selected = true;
+    link.attr("class", d => d.selected ? "link-selected" : "link");
+  } else {
+    context_delete_edge.style = "display: none;";
+  }
+  
+  ctx_menu_select_node_id = node_hover_id;
+  ctx_menu_select_edge_id = edge_hover_id;
+}
+
+function hideContextMenu() {
+  context_menu.style = `width: 0px; left: 0px; top: 0px; display: none;`;
+}
+
+function drawChildLink(d) {
+  return `M ${d.parent.x},${d.parent.y} Q${d.child.x},${d.parent.y} ${d.child.x},${d.child.y}`
+}
+
+function setSelectedColor(color) {
+  return function () {
+    if (node_selected_id == null) return;
+    tree.getNodeById(node_selected_id).color = color;
+    shapes.style("fill", d => COLOR_MAP.get(d.color))
+      .attr("stroke", d => BORDER_COLOR_MAP.get(d.color))
+      .attr("stroke-width", d => d.selected ? "4px" : "0px");
+    text.attr("fill", d => TEXT_COLOR_MAP.get(d.color));
+  };
+}
+
+function disable_edit_menu() {
+  data_input.disabled = true;
+  data_menu.style = "display: none;";
+}
+
+function enable_edit_menu() {
+  data_input.disabled = false;
+  data_menu.style = "position: absolute; left:5%; top:5%;";
+}
+
+function tick() {
+  link.attr("d", d => drawChildLink(d))
+  node.attr("transform", d => `translate(${d.x},${d.y})`);
+
+  if (edge_start_id == null) {
+    draw_edge.attr("d", "");
+  } else {
+    let edge_start = tree.getNodeById(edge_start_id);
+    draw_edge.attr("d", `M ${edge_start.x},${edge_start.y} Q${mouseX},${edge_start.y} ${mouseX},${mouseY}`);
+  }
+}
+
+function addNode() {
+  const node = tree.addNode(mouseX, mouseY, RADIUS, NONE)
+  if (node_selected_id != null) {
+    tree.getNodeById(node_selected_id).selected = false;
+  }
+  node_selected_id = node.id;
+  data_input.value = node.id;
+  none_button.checked = true;
+  red_button.checked = false;
+  black_button.checked = false;
+  none_button.disabled = false;
+  red_button.disabled = false;
+  black_button.disabled = false;
+  enable_edit_menu();
+  redraw();
+}
+
+function deleteNode(node_id) {
+  tree.deleteNode(node_id);
+  redraw();
+  if (node_id == node_selected_id) {
+    data_input.value = "";
+    none_button.checked = false;
+    red_button.checked = false;
+    black_button.checked = false;
+    disable_edit_menu();
+    none_button.disabled = true;
+    red_button.disabled = true;
+    black_button.disabled = true;
+    node_selected_id = null;
+  }
+}
+
+function deleteEdge(edge_id) {
+  tree.deleteEdge(edge_id);
+  redraw();
+  link.attr("class", d => d.selected ? "link-selected" : "link");
+}
+
+function addEdge(parent_id, child_id, type) {
+  try {
+    tree.addEdge(parent_id, child_id, type);
+  } catch (err) {
+    SnackBar({
+      message: err.message,
+      dismissible: true,
+      timeout: 5000,
+      status: "error",
+      container: "body",
+      position: "tm"
+    });
+  }
+  redraw();
+}
+
+function selectNode(node_id) {
+  if (node_selected_id != null) {
+    tree.getNodeById(node_selected_id).selected = false;
+  }
+  let node_data = tree.getNodeById(node_id);
+  node_data.selected = true;
+
+  node.selectAll(".nodeShape").attr("stroke-width", d => d.selected ? "4px" : "0px");
+
+  node_selected_id = node_id;
+  
+  data_input.value = node_data.label;
+  none_button.checked = false;
+  red_button.checked = false;
+  black_button.checked = false;
+  if (node_data.color == RED) {
+    red_button.checked = true;
+  } else if (node_data.color == BLACK) {
+    black_button.checked = true;
+  } else {
+    none_button.checked = true;
+  }
+  none_button.disabled = false;
+  red_button.disabled = false;
+  black_button.disabled = false;
+  enable_edit_menu();
+}
+
+function deselectNode() {
+  if (node_selected_id == null) return;
+  tree.getNodeById(node_selected_id).selected = false;
+  node_selected_id = null;
+  redraw();
+  none_button.disabled = true;
+  red_button.disabled = true;
+  black_button.disabled = true;
+  none_button.checked = false;
+  red_button.checked = false;
+  black_button.checked = false;
+  disable_edit_menu();
+}
 
 function node_dblclick(event, d) {
   selectNode(d.id);
@@ -660,7 +508,7 @@ function node_onmouseout(event, d) {
 
 function edge_onmouseover(event, d) {
   if (edge_hover_id != null) {
-    edgeById.get(edge_hover_id).selected = false;
+    tree.getEdgeById(edge_hover_id).selected = false;
   }
   d.selected = true;
 
@@ -671,7 +519,6 @@ function edge_onmouseout(event, d) {
   d.selected = false;
   edge_hover_id = null;
 }
-
 
 function dragstarted(event) {
   if (!event.active) simulation.alphaTarget(0.3).restart();
