@@ -16,6 +16,12 @@ let node_clicked_id = null;
 let node_hover_id = null;
 let edge_hover_id = null;
 let max_id = 0;
+let nodeById = null;
+let edgeById = null;
+let nodes = null;
+let bst_edges = null;
+let start_line_id = null;
+let child_type = null;
 
 // Apply a force to align the nodes into a binary tree
 function forceBinaryTree(links, strength = 0.1) {
@@ -109,14 +115,33 @@ const context_menu = document.getElementById("contextMenu");
 const context_add_node = document.getElementById("menu-item-add-node");
 const context_delete_node = document.getElementById("menu-item-delete-node");
 const context_edit_node = document.getElementById("menu-item-edit-node");
-let ctx_menu_select_id = null;
+const context_add_left_child = document.getElementById("menu-item-add-left-child");
+const context_add_right_child = document.getElementById("menu-item-add-right-child");
+const context_delete_edge = document.getElementById("menu-item-delete-edge");
+let ctx_menu_select_node_id = null;
+let ctx_menu_select_edge_id = null;
 
 function showContextMenu(e) {
   context_menu.style = `width: 300px; left: ${e.pageX}px; top: ${e.pageY}px;`;
-  context_add_node.style = node_hover_id == null ? "" : "display: none;";
+  context_add_node.style = node_hover_id == null && edge_hover_id == null ? "" : "display: none;";
   context_delete_node.style = node_hover_id == null ? "display: none;" : "";
   context_edit_node.style = node_hover_id == null ? "display: none;" : "";
-  ctx_menu_select_id = node_hover_id;
+  // if (node_hover_id != null) {
+  //   let leftChild = new Map();
+  //   let rightChild = new Map();
+  //   bst_edges.forEach(link => {
+  //     (link.type == "left" ? leftChild : rightChild).set(link.parent.id, link.child.id);
+  //   });
+  //   context_add_left_child.style = leftChild.has(node_hover_id) ? "display: none;" : "";
+  //   context_add_right_child.style = rightChild.has(node_hover_id) ? "display: none;" : "";
+  // } else {
+  //   context_add_left_child.style = "display: none;";
+  //   context_add_right_child.style = "display: none;";
+  // }
+  context_delete_edge.style = node_hover_id == null && edge_hover_id != null ? "" : "display: none;";
+  
+  ctx_menu_select_node_id = node_hover_id;
+  ctx_menu_select_edge_id = edge_hover_id;
 }
 
 function hideContextMenu() {
@@ -130,17 +155,51 @@ context_add_node.onclick = function(e) {
 
 context_delete_node.onclick = function(e) {
   hideContextMenu();
-  if (ctx_menu_select_id != null) {
-    deleteNode(ctx_menu_select_id);
-    ctx_menu_select_id = null;
+  if (ctx_menu_select_node_id != null) {
+    deleteNode(ctx_menu_select_node_id);
+    ctx_menu_select_node_id = null;
+  }
+}
+
+context_delete_node.onclick = function(e) {
+  hideContextMenu();
+  if (ctx_menu_select_node_id != null) {
+    deleteNode(ctx_menu_select_node_id);
+    ctx_menu_select_node_id = null;
+  }
+}
+
+context_delete_edge.onclick = function(e) {
+  hideContextMenu();
+  if (ctx_menu_select_edge_id != null) {
+    deleteEdge(ctx_menu_select_edge_id);
+    ctx_menu_select_edge_id = null;
   }
 }
 
 context_edit_node.onclick = function(e) {
   hideContextMenu();
-  if (ctx_menu_select_id != null) {
-    selectNode(ctx_menu_select_id);
-    ctx_menu_select_id = null;
+  if (ctx_menu_select_node_id != null) {
+    selectNode(ctx_menu_select_node_id);
+    ctx_menu_select_node_id = null;
+  }
+}
+
+context_add_left_child.onclick = function(e) {
+  hideContextMenu();
+  if (ctx_menu_select_node_id != null) {
+    start_line_id = ctx_menu_select_node_id;
+    child_type = "left";
+    console.log(start_line_id);
+  }
+}
+
+context_add_right_child.onclick = function(e) {
+  hideContextMenu();
+  if (ctx_menu_select_node_id != null) {
+    start_line_id = ctx_menu_select_node_id;
+    child_type = "right";
+    console.log(start_line_id);
   }
 }
 
@@ -153,7 +212,7 @@ let svg = d3.select("#d3_container")
     e.preventDefault();
   });
 
-let nodes = [
+nodes = [
     {id: 0, x: 0, y: 0, r: RADIUS, label: "0", color: RED, selected: false}, 
     {id: 1, x: 0, y: 0, r: RADIUS, label: "1", color: BLACK, selected: false}, 
     {id: 2, x: 380, y: 100, r: RADIUS, label: "2", color: NONE, selected: false},
@@ -168,7 +227,7 @@ nodes.forEach(node => {
     max_id = Math.max(max_id, node.id);
 });
 
-let bst_edges = [
+bst_edges = [
   {id: 0, parent: 1, child: 0, type: "left", selected: false},
   {id: 1, parent: 1, child: 3, type: "right", selected: false},
   {id: 2, parent: 3, child: 4, type: "right", selected: false},
@@ -178,8 +237,8 @@ let bst_edges = [
   {id: 6, parent: 5, child: 7, type: "right", selected: false},
 ]
 
-let nodeById = new Map(nodes.map((d, i) => [d.id, d]));
-let edgeById = new Map(bst_edges.map((d, i) => [d.id, d]));
+nodeById = new Map(nodes.map((d, i) => [d.id, d]));
+edgeById = new Map(bst_edges.map((d, i) => [d.id, d]));
 
 recomputeSpacing(nodes, bst_edges);
 
@@ -221,6 +280,7 @@ let node = g_node
   .on("mouseover", node_onmouseover)
   .on("mouseout", node_onmouseout)
   .on("dblclick", node_dblclick)
+  .on("click", node_click)
   .call(d3.drag().on("start", dragstarted).on("drag", dragged).on("end", dragended));
 
 let shapes = node
@@ -259,6 +319,7 @@ function redraw() {
     .on("mouseover", node_onmouseover)
     .on("mouseout", node_onmouseout)
     .on("dblclick", node_dblclick)
+    .on("click", node_click)
     .call(d3.drag().on("start", dragstarted).on("drag", dragged).on("end", dragended))
     .merge(update_nodes);
 
@@ -283,7 +344,6 @@ function redraw() {
     .attr("font-family", "sans-serif")
     .attr("fill", d => TEXT_COLOR_MAP.get(d.color))
     .merge(text);
-
 
   update_nodes.exit().remove();
 
@@ -465,6 +525,14 @@ d3.select("body")
 function node_dblclick(event, d) {
   selectNode(d.id);
 }
+
+function node_click(event, d) {
+  if (start_line_id != null) {
+    console.log("new edge ", start_line_id, d.id);
+    start_line_id = null;
+  }
+}
+
 
 function node_onmouseover(event, d) {
   // console.log("In: ", d.label);
