@@ -15,7 +15,8 @@ const NODE_SEP_Y = 150;
 let node_clicked_id = null;
 let node_hover_id = null;
 let edge_hover_id = null;
-let max_id = 0;
+let max_node_id = 0;
+let max_edge_id = 0;
 let nodeById = null;
 let edgeById = null;
 let nodes = null;
@@ -109,6 +110,16 @@ function recomputeSpacing(nodes, links) {
   roots.forEach(get_widths);
 }
 
+const snackbar = document.getElementById("snackbar");
+function showSnackbar(text, time_ms = 3000) {
+  snackbar.className = "show";
+  snackbar.textContent = text;
+  setTimeout(function(){
+    snackbar.className = "";
+    snackbar.textContent = "";
+  }, time_ms);
+}
+
 var width = window.innerWidth,
     height = window.innerHeight;
 const context_menu = document.getElementById("contextMenu");
@@ -126,18 +137,18 @@ function showContextMenu(e) {
   context_add_node.style = node_hover_id == null && edge_hover_id == null ? "" : "display: none;";
   context_delete_node.style = node_hover_id == null ? "display: none;" : "";
   context_edit_node.style = node_hover_id == null ? "display: none;" : "";
-  // if (node_hover_id != null) {
-  //   let leftChild = new Map();
-  //   let rightChild = new Map();
-  //   bst_edges.forEach(link => {
-  //     (link.type == "left" ? leftChild : rightChild).set(link.parent.id, link.child.id);
-  //   });
-  //   context_add_left_child.style = leftChild.has(node_hover_id) ? "display: none;" : "";
-  //   context_add_right_child.style = rightChild.has(node_hover_id) ? "display: none;" : "";
-  // } else {
-  //   context_add_left_child.style = "display: none;";
-  //   context_add_right_child.style = "display: none;";
-  // }
+  if (node_hover_id != null) {
+    let leftChild = new Map();
+    let rightChild = new Map();
+    bst_edges.forEach(link => {
+      (link.type == "left" ? leftChild : rightChild).set(link.parent.id, link.child.id);
+    });
+    context_add_left_child.style = leftChild.has(node_hover_id) ? "display: none;" : "";
+    context_add_right_child.style = rightChild.has(node_hover_id) ? "display: none;" : "";
+  } else {
+    context_add_left_child.style = "display: none;";
+    context_add_right_child.style = "display: none;";
+  }
   context_delete_edge.style = node_hover_id == null && edge_hover_id != null ? "" : "display: none;";
   
   ctx_menu_select_node_id = node_hover_id;
@@ -190,7 +201,7 @@ context_add_left_child.onclick = function(e) {
   if (ctx_menu_select_node_id != null) {
     start_line_id = ctx_menu_select_node_id;
     child_type = "left";
-    console.log(start_line_id);
+    // console.log(start_line_id);
   }
 }
 
@@ -199,7 +210,7 @@ context_add_right_child.onclick = function(e) {
   if (ctx_menu_select_node_id != null) {
     start_line_id = ctx_menu_select_node_id;
     child_type = "right";
-    console.log(start_line_id);
+    // console.log(start_line_id);
   }
 }
 
@@ -224,7 +235,7 @@ nodes = [
 ];
 
 nodes.forEach(node => {
-    max_id = Math.max(max_id, node.id);
+    max_node_id = Math.max(max_node_id, node.id);
 });
 
 bst_edges = [
@@ -236,6 +247,10 @@ bst_edges = [
   {id: 5, parent: 2, child: 6, type: "left", selected: false},
   {id: 6, parent: 5, child: 7, type: "right", selected: false},
 ]
+
+bst_edges.forEach(edge => {
+    max_edge_id = Math.max(max_edge_id, edge.id);
+});
 
 nodeById = new Map(nodes.map((d, i) => [d.id, d]));
 edgeById = new Map(bst_edges.map((d, i) => [d.id, d]));
@@ -352,9 +367,9 @@ function redraw() {
   link = update_links
     .enter()
     .append("path")
-    .attr("stroke-width", "8px")
-    .attr("fill", "none")
-    .attr("stroke", "black")
+    .attr("class", "link")
+    .on("mouseover", edge_onmouseover)
+    .on("mouseout", edge_onmouseout)
     .merge(update_links);
 }
 
@@ -403,13 +418,13 @@ function tick() {
 var mouseX, mouseY = null;
 
 function addNode() {
-  nodes.push({id: max_id + 1, x: mouseX, y: mouseY, r: RADIUS, label: max_id + 1, color: NONE, selected: true});
-  max_id += 1;
+  nodes.push({id: max_node_id + 1, x: mouseX, y: mouseY, r: RADIUS, label: max_node_id + 1, color: NONE, selected: true});
+  max_node_id += 1;
   if (node_clicked_id != null) {
     nodeById.get(node_clicked_id).selected = false;
   } 
-  node_clicked_id = max_id;
-  data_input.value = max_id;
+  node_clicked_id = max_node_id;
+  data_input.value = max_node_id;
   none_button.checked = true;
   red_button.checked = false;
   black_button.checked = false;
@@ -439,6 +454,75 @@ function deleteNode(node_id) {
 
 function deleteEdge(edge_id) {
   bst_edges = bst_edges.filter(d => d.id != edge_id);
+  redraw();
+}
+
+function addEdge(parent_id, child_id, type) {
+  // Check for existing parents and children
+  let leftChild = new Map();
+  let rightChild = new Map();
+  let parent = new Map();
+  let roots = new Set(nodes.map((d, i) => d.id));
+
+  bst_edges.forEach(link => {
+    (link.type == "left" ? leftChild : rightChild).set(link.parent.id, link.child.id);
+    parent.set(link.child.id, link.parent.id);
+    roots.delete(link.child.id);
+  });
+
+  if (type == "left" && leftChild.has(parent_id)) {
+    showSnackbar(`Node ${nodeById.get(parent_id).label} already has a left child`);
+    return;
+  }
+  if (type == "right" && rightChild.has(parent_id)) {
+    showSnackbar(`Node ${nodeById.get(parent_id).label} node already has a right child`);
+    return;
+  }
+  if (parent.has(child_id)) {
+    showSnackbar(`Node ${nodeById.get(child_id).label} already has a parent`);
+    return;
+  }
+
+  // Check for cycles
+  let bst_edges_added = [...bst_edges];
+  bst_edges_added.push({id: max_edge_id + 1, parent: nodeById.get(parent_id), child: nodeById.get(child_id), type: type, selected: false});
+  leftChild = new Map();
+  rightChild = new Map();
+  parent = new Map();
+  roots = new Set(nodes.map((d, i) => d.id));
+
+  bst_edges_added.forEach(link => {
+    (link.type == "left" ? leftChild : rightChild).set(link.parent.id, link.child.id);
+    parent.set(link.child.id, link.parent.id);
+  });
+
+  function check_cycle(node_id, path) {
+    if (path.includes(node_id)) {
+      return path.concat(node_id);
+    }
+    if (leftChild.has(node_id)) {
+      let left_res = check_cycle(leftChild.get(node_id), path.concat(node_id));
+      if (left_res != null) {
+        return left_res;
+      }
+    }
+    if (rightChild.has(node_id)) {
+      return check_cycle(rightChild.get(node_id), path.concat(node_id));
+    }
+    return null;
+  }
+
+  for (const id of roots) {
+    let res = check_cycle(id, []);
+    if (res != null) {
+      res = res.map(id => nodeById.get(id).label);
+      showSnackbar(`Adding this edge causes a loop: ${res}`, 5000);
+      return;
+    }
+  }
+  
+  bst_edges.push({id: max_edge_id + 1, parent: parent_id, child: child_id, type: type, selected: false});
+  max_edge_id += 1;
   redraw();
 }
 
@@ -520,6 +604,9 @@ d3.select("body")
     let sel_node = node.filter(d => d.id == node_clicked_id).nodes()[0];
     if (sel_node.contains(e.target)) return;
     deselectNode();
+
+    start_line_id = null;
+    child_type = null;
   });
 
 function node_dblclick(event, d) {
@@ -528,11 +615,11 @@ function node_dblclick(event, d) {
 
 function node_click(event, d) {
   if (start_line_id != null) {
-    console.log("new edge ", start_line_id, d.id);
+    addEdge(start_line_id, d.id, child_type);
     start_line_id = null;
+    child_type = null;
   }
 }
-
 
 function node_onmouseover(event, d) {
   // console.log("In: ", d.label);
