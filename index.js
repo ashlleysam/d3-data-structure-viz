@@ -105,11 +105,24 @@ function recomputeSpacing(nodes, links) {
 
 var width = window.innerWidth,
     height = window.innerHeight;
+const menu = document.getElementById("contextMenu");
+
+function showContextMenu(e) {
+  menu.style = `width: 300px; left: ${e.pageX}px; top: ${e.pageY}px;`;
+}
+
+function hideContextMenu() {
+  menu.style = `width: 0px; left: 0px; top: 0px; display: none;`;
+}
 
 let svg = d3.select("#d3_container")
   .append("svg")
   .attr("width", width)
-  .attr("height", height);
+  .attr("height", height)
+  .on("contextmenu", function(e) {
+    showContextMenu(e);
+    e.preventDefault();
+  });
 
 let nodes = [
     {id: 0, x: 0, y: 0, r: RADIUS, label: "0", color: RED, selected: false}, 
@@ -309,6 +322,29 @@ function tick() {
 
 var mouseX, mouseY = null;
 
+function addNode() {
+  nodes.push({id: max_id + 1, x: mouseX, y: mouseY, r: RADIUS, label: max_id + 1, color: NONE, selected: true});
+  max_id += 1;
+  if (node_clicked_id != null) {
+    nodeById.get(node_clicked_id).selected = false;
+  } 
+  node_clicked_id = max_id;
+  data_input.value = max_id;
+  none_button.checked = true;
+  red_button.checked = false;
+  black_button.checked = false;
+  none_button.disabled = false;
+  red_button.disabled = false;
+  black_button.disabled = false;
+  data_input.disabled = false;
+  redraw();
+}
+
+document.getElementById("menu-item-add-node").onclick = function() {
+  hideContextMenu();
+  addNode();
+}
+
 d3.select("body")
   .on("keydown", function(e) {
     if (e.key == ESCAPE && node_clicked_id != null) {
@@ -324,27 +360,13 @@ d3.select("body")
       data_input.disabled = true;
       data_input.value = "";
     } else if (e.key == 'n') {
-      nodes.push({id: max_id + 1, x: mouseX, y: mouseY, r: RADIUS, label: max_id + 1, color: NONE, selected: true});
-      max_id += 1;
-      if (node_clicked_id != null) {
-        nodeById.get(node_clicked_id).selected = false;
-      } 
-      node_clicked_id = max_id;
-      data_input.value = max_id;
-      none_button.checked = true;
-      red_button.checked = false;
-      black_button.checked = false;
-      none_button.disabled = false;
-      red_button.disabled = false;
-      black_button.disabled = false;
-      data_input.disabled = false;
-      redraw();
+      addNode();
     } else if (e.key == 'd') {
       if (node_hover_id != null) {
         nodes = nodes.filter(d => d.id != node_hover_id);
         bst_edges = bst_edges.filter(d => d.parent.id != node_hover_id && d.child.id != node_hover_id);
         redraw();
-        console.log(node_hover_id, node_clicked_id);
+        // console.log(node_hover_id, node_clicked_id);
         if (node_hover_id == node_clicked_id) {
           data_input.value = "";
           none_button.checked = false;
@@ -363,11 +385,16 @@ d3.select("body")
         edge_hover_id = null;
       }
     } else if (e.key == "Control") {
-      console.log(e.key);
+      if (node_hover_id != null) {
+
+      }
     }
   })
   .on('mousemove', function (e) {
     [mouseX, mouseY] = d3.pointer(e);
+  })
+  .on("click", function(e) {
+    console.log("body.onclick");
   });
 
 function node_dblclick(event, d) {
@@ -398,18 +425,18 @@ function node_dblclick(event, d) {
 }
 
 function node_onmouseover(event, d) {
-  console.log("In: ", d.label);
+  // console.log("In: ", d.label);
   d3.select(this).raise();
   node_hover_id = d.id;
 }
 
 function node_onmouseout(event, d) {
-  console.log("Out: ", d.label);
+  // console.log("Out: ", d.label);
   node_hover_id = null;
 }
 
 function edge_onmouseover(event, d) {
-  console.log("In Edge: ", d);
+  // console.log("In Edge: ", d);
   if (edge_hover_id != null) {
     edgeById.get(edge_hover_id).selected = false;
   }
@@ -419,7 +446,7 @@ function edge_onmouseover(event, d) {
 }
 
 function edge_onmouseout(event, d) {
-  console.log("Out Edge: ", d);
+  // console.log("Out Edge: ", d);
   d.selected = false;
   edge_hover_id = null;
 }

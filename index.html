@@ -11,6 +11,46 @@
     <script type="module" src="index.js"></script>
 </head>
 <body>
+    <div id="contextMenu" class="menu-popup" style="width: 0px; left: 658px; top: 188px; display: none;">
+        <div class="menu-panel">
+            <div class="menu-item" id="menu-item-add-node">
+                <div class="menu-item-icon">
+                    <img height="24px" width="24px" src="/images/add.svg" alt="Add"/>
+                </div>
+                <div class="menu-item-label">Add node</div>
+            </div>
+            <!-- <div class="menu-item">
+                <div class="menu-item-icon">
+                    <img height="24px" width="24px" src="/images/delete.svg" alt="Delete"/>
+                </div>
+                <div class="menu-item-label">Delete node</div>
+            </div>
+            <div class="menu-item">
+                <div class="menu-item-icon">
+                    <img height="24px" width="24px" src="/images/delete.svg" alt="Delete"/>
+                </div>
+                <div class="menu-item-label">Delete edge</div>
+            </div>
+            <div class="menu-item">
+                <div class="menu-item-icon">
+                    <img height="24px" width="24px" src="/images/edit.svg" alt="Edit"/>
+                </div>
+                <div class="menu-item-label">Edit node</div>
+            </div>
+            <div class="menu-item">
+                <div class="menu-item-icon">
+                    <img height="24px" width="24px" src="/images/child_left.svg" alt="Left child"/>
+                </div>
+                <div class="menu-item-label">Set left child</div>
+            </div>
+            <div class="menu-item">
+                <div class="menu-item-icon">
+                    <img height="24px" width="24px" src="/images/child_right.svg" alt="Right child"/>
+                </div>
+                <div class="menu-item-label">Set right child</div>
+            </div> -->
+        </div>
+    </div>
     <div oncontextmenu="return false" id="d3_container"></div>
     <div class="node_data" id="input_container" style="position: absolute; left:5%; top:5%;">
         <input disabled type="text" id="nodeData" name="nodeData" placeholder="Node Data" style="font-family: sans-serif; font-size: 1.5em;">
@@ -34,5 +74,5 @@
                 </label>
             </div>
         </fieldset>
-    </div>
+    </section>
 </body>
