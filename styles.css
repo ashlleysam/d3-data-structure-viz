@@ -183,10 +183,17 @@
   transition: stroke-width 0.1s, stroke 0.1s;
 }
 
-.link:hover {
+.link:hover, .link-selected {
   stroke-width: 12px;
   stroke: #6716ea;
   fill: none;
+}
+
+.link-no-hover {
+  stroke-width: 8px;
+  stroke: black;
+  fill: none;
+  transition: stroke-width 0.1s, stroke 0.1s;
 }
 
 .node:hover {

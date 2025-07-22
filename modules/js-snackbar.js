@@ -345,10 +345,8 @@
     }, 1000);
   };
 
-  console.log("create");
   _create();
 
-  console.log("Open");
   _This.Open();
 }
 

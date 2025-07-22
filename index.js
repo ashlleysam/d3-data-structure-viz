@@ -22,7 +22,7 @@ let nodeById = null;
 let edgeById = null;
 let nodes = null;
 let bst_edges = null;
-let start_line_id = null;
+let edge_start_id = null;
 let child_type = null;
 
 // Apply a force to align the nodes into a binary tree
@@ -201,18 +201,16 @@ context_edit_node.onclick = function(e) {
 context_add_left_child.onclick = function(e) {
   hideContextMenu();
   if (ctx_menu_select_node_id != null) {
-    start_line_id = ctx_menu_select_node_id;
+    edge_start_id = ctx_menu_select_node_id;
     child_type = "left";
-    // console.log(start_line_id);
   }
 }
 
 context_add_right_child.onclick = function(e) {
   hideContextMenu();
   if (ctx_menu_select_node_id != null) {
-    start_line_id = ctx_menu_select_node_id;
+    edge_start_id = ctx_menu_select_node_id;
     child_type = "right";
-    // console.log(start_line_id);
   }
 }
 
@@ -286,6 +284,9 @@ let link = g_link
   .attr("class", "link")
   .on("mouseover", edge_onmouseover)
   .on("mouseout", edge_onmouseout);
+
+let g_misc = svg.append("g").attr("class", "misc");
+let draw_edge = g_misc.append("path").attr("class", "link-no-hover");
 
 let g_node = svg.append("g").attr("class", "nodes");
 let node = g_node
@@ -412,12 +413,19 @@ none_button.disabled = true;
 red_button.disabled = true;
 black_button.disabled = true;
 
+var mouseX, mouseY = null;
+
 function tick() {
   link.attr("d", d => drawChildLink(d))
   node.attr("transform", d => `translate(${d.x},${d.y})`);
-}
 
-var mouseX, mouseY = null;
+  if (edge_start_id == null) {
+    draw_edge.attr("d", "");
+  } else {
+    let edge_start = nodeById.get(edge_start_id);
+    draw_edge.attr("d", `M ${edge_start.x},${edge_start.y} Q${mouseX},${edge_start.y} ${mouseX},${mouseY}`);
+  }
+}
 
 function addNode() {
   nodes.push({id: max_node_id + 1, x: mouseX, y: mouseY, r: RADIUS, label: max_node_id + 1, color: NONE, selected: true});
@@ -600,15 +608,18 @@ d3.select("body")
 
     // If there is a selected node, deselect it if the click isn't on either
     // the data menu, the edit context menu, or on the node itself
-    if (data_menu.contains(e.target)) return;
-    if (context_edit_node.contains(e.target)) return;
-    if (node_clicked_id == null) return;
-    let sel_node = node.filter(d => d.id == node_clicked_id).nodes()[0];
-    if (sel_node.contains(e.target)) return;
-    deselectNode();
+    if (!data_menu.contains(e.target) && !context_edit_node.contains(e.target) && node_clicked_id != null) {
+      let sel_node = node.filter(d => d.id == node_clicked_id).nodes()[0];
+      if (!sel_node.contains(e.target)) {
+        deselectNode();
+      }
+    }
 
-    start_line_id = null;
-    child_type = null;
+    if (!context_add_left_child.contains(e.target) && !context_add_right_child.contains(e.target)) {
+      edge_start_id = null;
+      child_type = null;
+      draw_edge.attr("d", "");
+    }
   });
 
 function node_dblclick(event, d) {
@@ -616,26 +627,24 @@ function node_dblclick(event, d) {
 }
 
 function node_click(event, d) {
-  if (start_line_id != null) {
-    addEdge(start_line_id, d.id, child_type);
-    start_line_id = null;
+  if (edge_start_id != null) {
+    addEdge(edge_start_id, d.id, child_type);
+    edge_start_id = null;
     child_type = null;
+    draw_edge.attr("d", "");
   }
 }
 
 function node_onmouseover(event, d) {
-  // console.log("In: ", d.label);
   d3.select(this).raise();
   node_hover_id = d.id;
 }
 
 function node_onmouseout(event, d) {
-  // console.log("Out: ", d.label);
   node_hover_id = null;
 }
 
 function edge_onmouseover(event, d) {
-  // console.log("In Edge: ", d);
   if (edge_hover_id != null) {
     edgeById.get(edge_hover_id).selected = false;
   }
@@ -645,14 +654,12 @@ function edge_onmouseover(event, d) {
 }
 
 function edge_onmouseout(event, d) {
-  // console.log("Out Edge: ", d);
   d.selected = false;
   edge_hover_id = null;
 }
 
 
 function dragstarted(event) {
-  // if (!event.active) simulation.alphaTarget(0.3).restart();
   if (!event.active) simulation.alphaTarget(0.3).restart();
   event.subject.fx = event.subject.x;
   event.subject.fy = event.subject.y;
