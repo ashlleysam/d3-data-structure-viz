@@ -199,6 +199,71 @@ black_button.disabled = true;
 
 var mouseX, mouseY = null;
 
+d3.select("body")
+  .on("keydown", function(e) {
+    if (e.key == ESCAPE) {
+      deselectNode();
+    } else if (e.key == 'n') {
+      addNode();
+    } else if (e.key == 'd') {
+      if (node_hover_id != null) {
+        deleteNode(node_hover_id);
+        node_hover_id = null;
+      } else if (edge_hover_id != null) {
+        deleteEdge(edge_hover_id);
+        edge_hover_id = null;
+      }
+    } else if (e.key == 'ArrowRight') {
+      if (node_selected_id != null) {
+        const right_child = tree.rightChild.has(node_selected_id) ? tree.rightChild.get(node_selected_id) : null;
+        if (right_child != null) {
+          selectNode(right_child);
+        }
+      }
+    } else if (e.key == 'ArrowLeft') {
+      if (node_selected_id != null) {
+        const left_child = tree.leftChild.has(node_selected_id) ? tree.leftChild.get(node_selected_id) : null;
+        if (left_child != null) {
+          selectNode(left_child);
+        }
+      }
+    } else if (e.key == 'ArrowUp') {
+      if (node_selected_id != null) {
+        const parent = tree.parent.has(node_selected_id) ? tree.parent.get(node_selected_id) : null;
+        if (parent != null) {
+          selectNode(parent);
+        }
+      }
+    }
+  })
+  .on('mousemove', function (e) {
+    [mouseX, mouseY] = d3.pointer(e);
+  })
+  .on("click", function(e) {
+    // This event is triggered for Safari on right clicks
+    // as well as contextmenu, so we need to intercept it
+    if (e.ctrlKey) return;
+
+    // Always hide the context menu on the next click
+    hideContextMenu();
+
+    // If there is a selected node, deselect it if the click isn't on either
+    // the data menu, the edit context menu, or on the node itself
+    if (!data_menu.contains(e.target) && !context_edit_node.contains(e.target) && node_selected_id != null) {
+      const sel_node = node.filter(d => d.id === node_selected_id).nodes()[0];
+      if (!sel_node.contains(e.target)) {
+        deselectNode();
+      }
+    }
+
+    if (!context_add_left_child.contains(e.target) && !context_add_right_child.contains(e.target)) {
+      edge_start_id = null;
+      child_type = null;
+      draw_edge.attr("d", "");
+    }
+  });
+
+
 function redraw() {
   simulation
     .nodes(tree.nodes)
@@ -253,48 +318,6 @@ function redraw() {
     .merge(update_links);
 }
 
-d3.select("body")
-  .on("keydown", function(e) {
-    if (e.key == ESCAPE) {
-      deselectNode();
-    } else if (e.key == 'n') {
-      addNode();
-    } else if (e.key == 'd') {
-      if (node_hover_id != null) {
-        deleteNode(node_hover_id);
-        node_hover_id = null;
-      } else if (edge_hover_id != null) {
-        deleteEdge(edge_hover_id);
-        edge_hover_id = null;
-      }
-    }
-  })
-  .on('mousemove', function (e) {
-    [mouseX, mouseY] = d3.pointer(e);
-  })
-  .on("click", function(e) {
-    // This event is triggered for Safari on right clicks
-    // as well as contextmenu, so we need to intercept it
-    if (e.ctrlKey) return;
-
-    // Always hide the context menu on the next click
-    hideContextMenu();
-
-    // If there is a selected node, deselect it if the click isn't on either
-    // the data menu, the edit context menu, or on the node itself
-    if (!data_menu.contains(e.target) && !context_edit_node.contains(e.target) && node_selected_id != null) {
-      const sel_node = node.filter(d => d.id === node_selected_id).nodes()[0];
-      if (!sel_node.contains(e.target)) {
-        deselectNode();
-      }
-    }
-
-    if (!context_add_left_child.contains(e.target) && !context_add_right_child.contains(e.target)) {
-      edge_start_id = null;
-      child_type = null;
-      draw_edge.attr("d", "");
-    }
-  });
 
 // Apply a force to align the nodes into a binary tree
 function forceBinaryTree(tree, strength = 0.1) {
