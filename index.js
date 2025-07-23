@@ -163,7 +163,7 @@ let shapes = node
   .attr("r", d => d.r)
   .style("fill", d => COLOR_MAP.get(d.color))
   .attr("stroke", d => BORDER_COLOR_MAP.get(d.color))
-  .attr("stroke-width", d => d.selected ? "4px" : "0px");
+  .attr("stroke-width", d => d.selected ? "4px" : "1px");
 
 let text = node
   .append("text")
@@ -226,7 +226,7 @@ function redraw() {
     .attr("r", d => d.r)
     .style("fill", d => COLOR_MAP.get(d.color))
     .attr("stroke", d => BORDER_COLOR_MAP.get(d.color))
-    .attr("stroke-width", d => d.selected ? "4px" : "0px")
+    .attr("stroke-width", d => d.selected ? "4px" : "1px")
     .merge(shapes);
 
   text = node
@@ -273,6 +273,10 @@ d3.select("body")
     [mouseX, mouseY] = d3.pointer(e);
   })
   .on("click", function(e) {
+    // This event is triggered for Safari on right clicks
+    // as well as contextmenu, so we need to intercept it
+    if (e.ctrlKey) return;
+
     // Always hide the context menu on the next click
     hideContextMenu();
 
@@ -360,7 +364,7 @@ function setSelectedColor(color) {
     tree.getNodeById(node_selected_id).color = color;
     shapes.style("fill", d => COLOR_MAP.get(d.color))
       .attr("stroke", d => BORDER_COLOR_MAP.get(d.color))
-      .attr("stroke-width", d => d.selected ? "4px" : "0px");
+      .attr("stroke-width", d => d.selected ? "4px" : "1px");
     text.attr("fill", d => TEXT_COLOR_MAP.get(d.color));
   };
 }
@@ -449,7 +453,7 @@ function selectNode(node_id) {
   let node_data = tree.getNodeById(node_id);
   node_data.selected = true;
 
-  node.selectAll(".nodeShape").attr("stroke-width", d => d.selected ? "4px" : "0px");
+  node.selectAll(".nodeShape").attr("stroke-width", d => d.selected ? "4px" : "1px");
 
   node_selected_id = node_id;
   
