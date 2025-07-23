@@ -264,14 +264,14 @@ let svg = d3.select("#d3_container")
   });
 
 let tree = new BinaryTree([
-    {id: 0, x: 0, y: 0, r: RADIUS, label: "0", color: RED, selected: false}, 
-    {id: 1, x: 0, y: 0, r: RADIUS, label: "1", color: BLACK, selected: false}, 
-    {id: 2, x: 380, y: 100, r: RADIUS, label: "2", color: NONE, selected: false},
-    {id: 3, x: 0, y: 0, r: RADIUS, label: "3", color: NONE, selected: false},
-    {id: 4, x: 380, y: 100, r: RADIUS, label: "4", color: "black", selected: false},
-    {id: 5, x: 380, y: 100, r: RADIUS, label: "5", color: RED, selected: false},
-    {id: 6, x: 380, y: 100, r: RADIUS, label: "6", color: "black", selected: false},
-    {id: 7, x: 380, y: 100, r: RADIUS, label: "7", color: "black", selected: false},
+    {id: 0, x: 0, y: 0, r: RADIUS, label: "0", color: RED, selected: false, shape: "circle"}, 
+    {id: 1, x: 0, y: 0, r: RADIUS, label: "1", color: BLACK, selected: false, shape: "circle"}, 
+    {id: 2, x: 380, y: 100, r: RADIUS, label: "2", color: NONE, selected: false, shape: "circle"},
+    {id: 3, x: 0, y: 0, r: RADIUS, label: "3", color: NONE, selected: false, shape: "circle"},
+    {id: 4, x: 380, y: 100, r: RADIUS, label: "4", color: "black", selected: false, shape: "circle"},
+    {id: 5, x: 380, y: 100, r: RADIUS, label: "5", color: RED, selected: false, shape: "circle"},
+    {id: 6, x: 380, y: 100, r: RADIUS, label: "6", color: "black", selected: false, shape: "circle"},
+    {id: 7, x: 380, y: 100, r: RADIUS, label: "7", color: "black", selected: false, shape: "circle"},
   ],
   [
     {id: 0, parent: 1, child: 0, type: "left", selected: false},
@@ -325,10 +325,29 @@ let node = g_node
   .on("click", node_click)
   .call(d3.drag().on("start", dragstarted).on("drag", dragged).on("end", dragended));
 
-let shapes = node
+let circles = node
+  .filter(d => d.shape === "circle")
   .append("circle")
   .attr("class", "nodeShape")
   .attr("r", d => d.r)
+  .style("fill", d => COLOR_MAP.get(d.color))
+  .attr("stroke", d => BORDER_COLOR_MAP.get(d.color))
+  .attr("stroke-width", d => d.selected ? "4px" : "1px");
+
+function degToRad(a) {
+  return a * (Math.PI / 180);
+}
+
+function triangle_points(r) {
+  let r1 = 1.5*r;
+  return `${r1*Math.cos(degToRad(90))},${-r1*Math.sin(degToRad(90))} ${r1*Math.cos(degToRad(210))},${-r1*Math.sin(degToRad(210))} ${r1*Math.cos(degToRad(330))},${-r1*Math.sin(degToRad(330))}`;
+}
+
+let triangles = node
+  .filter(d => d.shape === "triangle")
+  .append("polygon")
+  .attr("class", "nodeShape")
+  .attr("points", d => triangle_points(d.r))
   .style("fill", d => COLOR_MAP.get(d.color))
   .attr("stroke", d => BORDER_COLOR_MAP.get(d.color))
   .attr("stroke-width", d => d.selected ? "4px" : "1px");
@@ -364,6 +383,15 @@ black_button.checked = false;
 none_button.disabled = true;
 red_button.disabled = true;
 black_button.disabled = true;
+
+const circle_button = document.getElementById("circleButton");
+circle_button.onclick = setSelectedShape("circle");
+const triangle_button = document.getElementById("triangleButton");
+triangle_button.onclick = setSelectedShape("triangle");
+circle_button.checked = false;
+triangle_button.checked = false;
+circle_button.disabled = true;
+triangle_button.disabled = true;
 
 var mouseX, mouseY = null;
 
@@ -459,14 +487,25 @@ function redraw() {
 
   node.selectAll("*").remove();
 
-  shapes = node
+  circles = node
+    .filter(d => d.shape === "circle")
     .append("circle")
     .attr("class", "nodeShape")
     .attr("r", d => d.r)
     .style("fill", d => COLOR_MAP.get(d.color))
     .attr("stroke", d => BORDER_COLOR_MAP.get(d.color))
     .attr("stroke-width", d => d.selected ? "4px" : "1px")
-    .merge(shapes);
+    .merge(circles);
+
+  triangles = node
+    .filter(d => d.shape === "triangle")
+    .append("polygon")
+    .attr("class", "nodeShape")
+    .attr("points", d => triangle_points(d.r))
+    .style("fill", d => COLOR_MAP.get(d.color))
+    .attr("stroke", d => BORDER_COLOR_MAP.get(d.color))
+    .attr("stroke-width", d => d.selected ? "4px" : "1px")
+    .merge(triangles);
 
   text = node
     .append("text")
@@ -559,10 +598,21 @@ function setSelectedColor(color) {
   return function () {
     if (node_selected_id == null) return;
     tree.getNodeById(node_selected_id).color = color;
-    shapes.style("fill", d => COLOR_MAP.get(d.color))
+    circles.style("fill", d => COLOR_MAP.get(d.color))
+      .attr("stroke", d => BORDER_COLOR_MAP.get(d.color))
+      .attr("stroke-width", d => d.selected ? "4px" : "1px");
+    triangles.style("fill", d => COLOR_MAP.get(d.color))
       .attr("stroke", d => BORDER_COLOR_MAP.get(d.color))
       .attr("stroke-width", d => d.selected ? "4px" : "1px");
     text.attr("fill", d => TEXT_COLOR_MAP.get(d.color));
+  };
+}
+
+function setSelectedShape(shape) {
+  return function () {
+    if (node_selected_id == null) return;
+    tree.getNodeById(node_selected_id).shape = shape;
+    redraw();
   };
 }
 
@@ -589,7 +639,7 @@ function tick() {
 }
 
 function addNode() {
-  const node = tree.addNode(mouseX, mouseY, RADIUS, NONE)
+  const node = tree.addNode(mouseX, mouseY, RADIUS, NONE, "circle");
   if (node_selected_id !== null) {
     tree.getNodeById(node_selected_id).selected = false;
   }
@@ -601,6 +651,10 @@ function addNode() {
   none_button.disabled = false;
   red_button.disabled = false;
   black_button.disabled = false;
+  circle_button.checked = true;
+  triangle_button.checked = false;
+  circle_button.disabled = false;
+  triangle_button.disabled = false;
   enable_edit_menu();
   redraw();
 }
@@ -617,6 +671,8 @@ function deleteNode(node_id) {
     none_button.disabled = true;
     red_button.disabled = true;
     black_button.disabled = true;
+    circle_button.disabled = true;
+    triangle_button.disabled = true;
     node_selected_id = null;
   }
 }
@@ -665,9 +721,16 @@ function selectNode(node_id) {
   } else {
     none_button.checked = true;
   }
+  if (node_data.shape == "circle") {
+    circle_button.checked = true;
+  } else {
+    triangle_button.checked = true;
+  }
   none_button.disabled = false;
   red_button.disabled = false;
   black_button.disabled = false;
+  circle_button.disabled = false;
+  triangle_button.disabled = false;
   enable_edit_menu();
 }
 

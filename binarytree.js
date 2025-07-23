@@ -13,11 +13,11 @@ export class BinaryTree {
         this.parent;
         this.roots;
 
-        this.recompute();
+        this._recompute();
     }
 
-    // Set descendant set and check for cycles
     _compute_descendants(node_id, path) {
+        // Recursively compute descendant set and check for cycles
         if (path.includes(node_id)) {
             throw new Error(`Cycle present including node "${link.parent.label}"`);
         }
@@ -32,7 +32,7 @@ export class BinaryTree {
         return desc;
     }
 
-    recompute() {
+    _recompute() {
         // Make edges references rather than ids
         this.bst_edges.forEach(link => {
             if (typeof link.parent !== "object") link.parent = this.getNodeById(link.parent);
@@ -72,21 +72,23 @@ export class BinaryTree {
         return this.edges_by_id.get(id);
     }
 
-    addNode(x, y, r, color) {
-        const node = {id: this.max_node_id + 1, x: x, y: y, r: r, label: String(this.max_node_id + 1), color: color, selected: false};
+    addNode(x, y, r, color, shape) {
+        const node = {id: this.max_node_id + 1, x: x, y: y, r: r, label: String(this.max_node_id + 1), color: color, shape: shape, selected: false};
         this.nodes.push(node);
         this.max_node_id++;
         this.nodes_by_id.set(node.id, node);
-        this.recompute();
+        this._recompute();
         return node;
     }
 
     deleteNode(id) {
+        const node = this.nodes_by_id.get(id);
         this.nodes = this.nodes.filter(d => d.id !== id);
         this.bst_edges = this.bst_edges.filter(d => d.parent.id !== id && d.child.id !== id);
         this.nodes_by_id.delete(id);
         this.edges_by_id = new Map(this.bst_edges.map((d, i) => [d.id, d]));
-        this.recompute();
+        this._recompute();
+        return node;
     }
 
     canAddEdge(parent_id, child_id, type) {
@@ -118,14 +120,19 @@ export class BinaryTree {
         this.edges_by_id.set(edge.id, edge);
         this.bst_edges.push(edge);
 
-        this.recompute();
+        this._recompute();
+        
+        return edge;
     }
 
     deleteEdge(id) {
+        const edge = this.edges_by_id.get(id);
         this.bst_edges = this.bst_edges.filter(d => d.id !== id);
         this.edges_by_id.delete(id);
 
-        this.recompute();
+        this._recompute();
+
+        return edge;
     }
 
     _get_widths(id) {
@@ -152,7 +159,7 @@ export class BinaryTree {
     }
 
     stringify() {
-        const nodes_dict = this.nodes.map(d => { return {id: d.id, x: d.x, y: d.y, r: d.r, label: d.label, color: d.color, selected: false}  });
+        const nodes_dict = this.nodes.map(d => { return {id: d.id, x: d.x, y: d.y, r: d.r, label: d.label, color: d.color, selected: false, shape: d.shape}  });
         const edges_dict = this.bst_edges.map(d => { return {id: d.id, parent: d.parent.id, child: d.child.id, type: d.type, selected: false} });
         return JSON.stringify({
             nodes: nodes_dict,
@@ -164,5 +171,5 @@ export class BinaryTree {
     static fromString(jsonString) {
         const json = JSON.parse(jsonString);
         return new BinaryTree(json.nodes, json.bst_edges, json.node_sep_x);
-  }
+     }
 }
