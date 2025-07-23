@@ -6,7 +6,7 @@ const ESCAPE = "Escape";
 const RED = "red";
 const BLACK = "black"
 const NONE = "none";
-const RED_COLOR = "rgba(220, 50, 32, 1)"
+const RED_COLOR = "#C5050C"
 const BLACK_COLOR = "rgba(0, 0, 0, 1)"
 const COLOR_MAP = new Map([[RED, RED_COLOR], [BLACK, BLACK_COLOR], [NONE, "white"]]);
 const TEXT_COLOR_MAP = new Map([[RED, "white"], [BLACK, "white"], [NONE, "black"]]);
@@ -559,7 +559,6 @@ function dragged(event) {
 }
 
 function dragended(event) {
-  // if (!event.active) simulation.alphaTarget(0);
   event.subject.fx = null;
   event.subject.fy = null;
 }
