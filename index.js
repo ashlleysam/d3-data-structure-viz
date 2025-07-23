@@ -39,7 +39,7 @@ context_add_node.onclick = function(e) {
 
 context_delete_node.onclick = function(e) {
   hideContextMenu();
-  if (ctx_menu_select_node_id != null) {
+  if (ctx_menu_select_node_id !== null) {
     deleteNode(ctx_menu_select_node_id);
     ctx_menu_select_node_id = null;
   }
@@ -47,7 +47,7 @@ context_delete_node.onclick = function(e) {
 
 context_delete_node.onclick = function(e) {
   hideContextMenu();
-  if (ctx_menu_select_node_id != null) {
+  if (ctx_menu_select_node_id !== null) {
     deleteNode(ctx_menu_select_node_id);
     ctx_menu_select_node_id = null;
   }
@@ -56,7 +56,7 @@ context_delete_node.onclick = function(e) {
 context_delete_edge.onclick = function(e) {
   hideContextMenu();
 
-  if (ctx_menu_select_edge_id != null) {
+  if (ctx_menu_select_edge_id !== null) {
     deleteEdge(ctx_menu_select_edge_id);
     ctx_menu_select_edge_id = null;
   }
@@ -64,7 +64,7 @@ context_delete_edge.onclick = function(e) {
 
 context_edit_node.onclick = function(e) {
   hideContextMenu();
-  if (ctx_menu_select_node_id != null) {
+  if (ctx_menu_select_node_id !== null) {
     selectNode(ctx_menu_select_node_id);
     ctx_menu_select_node_id = null;
   }
@@ -72,7 +72,7 @@ context_edit_node.onclick = function(e) {
 
 context_add_left_child.onclick = function(e) {
   hideContextMenu();
-  if (ctx_menu_select_node_id != null) {
+  if (ctx_menu_select_node_id !== null) {
     edge_start_id = ctx_menu_select_node_id;
     child_type = "left";
   }
@@ -80,7 +80,7 @@ context_add_left_child.onclick = function(e) {
 
 context_add_right_child.onclick = function(e) {
   hideContextMenu();
-  if (ctx_menu_select_node_id != null) {
+  if (ctx_menu_select_node_id !== null) {
     edge_start_id = ctx_menu_select_node_id;
     child_type = "right";
   }
@@ -206,31 +206,31 @@ d3.select("body")
     } else if (e.key == 'n') {
       addNode();
     } else if (e.key == 'd') {
-      if (node_hover_id != null) {
+      if (node_hover_id !== null) {
         deleteNode(node_hover_id);
         node_hover_id = null;
-      } else if (edge_hover_id != null) {
+      } else if (edge_hover_id !== null) {
         deleteEdge(edge_hover_id);
         edge_hover_id = null;
       }
     } else if (e.key == 'ArrowRight') {
-      if (node_selected_id != null) {
+      if (node_selected_id !== null) {
         const right_child = tree.rightChild.has(node_selected_id) ? tree.rightChild.get(node_selected_id) : null;
-        if (right_child != null) {
+        if (right_child !== null) {
           selectNode(right_child);
         }
       }
     } else if (e.key == 'ArrowLeft') {
-      if (node_selected_id != null) {
+      if (node_selected_id !== null) {
         const left_child = tree.leftChild.has(node_selected_id) ? tree.leftChild.get(node_selected_id) : null;
-        if (left_child != null) {
+        if (left_child !== null) {
           selectNode(left_child);
         }
       }
     } else if (e.key == 'ArrowUp') {
-      if (node_selected_id != null) {
+      if (node_selected_id !== null) {
         const parent = tree.parent.has(node_selected_id) ? tree.parent.get(node_selected_id) : null;
-        if (parent != null) {
+        if (parent !== null) {
           selectNode(parent);
         }
       }
@@ -249,11 +249,17 @@ d3.select("body")
 
     // If there is a selected node, deselect it if the click isn't on either
     // the data menu, the edit context menu, or on the node itself
-    if (!data_menu.contains(e.target) && !context_edit_node.contains(e.target) && node_selected_id != null) {
+    if (!data_menu.contains(e.target) && !context_edit_node.contains(e.target) && node_selected_id !== null) {
       const sel_node = node.filter(d => d.id === node_selected_id).nodes()[0];
       if (!sel_node.contains(e.target)) {
         deselectNode();
       }
+    }
+
+    if (!data_menu.contains(e.target) && ctx_menu_select_edge_id !== null) {
+      tree.getEdgeById(ctx_menu_select_edge_id).selected = false;
+      link.attr("class", d => d.selected ? "link-selected" : "link");
+      ctx_menu_select_edge_id = null;
     }
 
     if (!context_add_left_child.contains(e.target) && !context_add_right_child.contains(e.target)) {
@@ -348,7 +354,7 @@ function showContextMenu(e) {
   context_add_node.style = node_hover_id == null && edge_hover_id == null ? "" : "display: none;";
   context_delete_node.style = node_hover_id == null ? "display: none;" : "";
   context_edit_node.style = node_hover_id == null ? "display: none;" : "";
-  if (node_hover_id != null) {
+  if (node_hover_id !== null) {
     let leftChild = new Map();
     let rightChild = new Map();
     tree.bst_edges.forEach(link => {
@@ -361,7 +367,7 @@ function showContextMenu(e) {
     context_add_right_child.style = "display: none;";
   }
 
-  if (node_hover_id == null && edge_hover_id != null) {
+  if (node_hover_id == null && edge_hover_id !== null) {
     context_delete_edge.style = "";
     tree.getEdgeById(edge_hover_id).selected = true;
     link.attr("class", d => d.selected ? "link-selected" : "link");
@@ -416,7 +422,7 @@ function tick() {
 
 function addNode() {
   const node = tree.addNode(mouseX, mouseY, RADIUS, NONE)
-  if (node_selected_id != null) {
+  if (node_selected_id !== null) {
     tree.getNodeById(node_selected_id).selected = false;
   }
   node_selected_id = node.id;
@@ -470,7 +476,7 @@ function addEdge(parent_id, child_id, type) {
 }
 
 function selectNode(node_id) {
-  if (node_selected_id != null) {
+  if (node_selected_id !== null) {
     tree.getNodeById(node_selected_id).selected = false;
   }
   let node_data = tree.getNodeById(node_id);
@@ -516,7 +522,7 @@ function node_dblclick(event, d) {
 }
 
 function node_click(event, d) {
-  if (edge_start_id != null) {
+  if (edge_start_id !== null) {
     addEdge(edge_start_id, d.id, child_type);
     edge_start_id = null;
     child_type = null;
@@ -534,7 +540,7 @@ function node_onmouseout(event, d) {
 }
 
 function edge_onmouseover(event, d) {
-  if (edge_hover_id != null) {
+  if (edge_hover_id !== null) {
     tree.getEdgeById(edge_hover_id).selected = false;
   }
   d.selected = true;
