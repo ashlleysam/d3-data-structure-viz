@@ -150,4 +150,19 @@ export class BinaryTree {
         }
         par_node.bst_width = par_node.bst_width_left + par_node.bst_width_right;
     }
+
+    stringify() {
+        const nodes_dict = this.nodes.map(d => { return {id: d.id, x: d.x, y: d.y, r: d.r, label: d.label, color: d.color, selected: false}  });
+        const edges_dict = this.bst_edges.map(d => { return {id: d.id, parent: d.parent.id, child: d.child.id, type: d.type, selected: false} });
+        return JSON.stringify({
+            nodes: nodes_dict,
+            bst_edges: edges_dict,
+            node_sep_x: this.node_sep_x
+        });
+    }
+
+    static fromString(jsonString) {
+        const json = JSON.parse(jsonString);
+        return new BinaryTree(json.nodes, json.bst_edges, json.node_sep_x);
+  }
 }
