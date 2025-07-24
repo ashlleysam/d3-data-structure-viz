@@ -72,8 +72,8 @@ export class BinaryTree {
         return this.edges_by_id.get(id);
     }
 
-    addNode(x, y, r, color, shape) {
-        const node = {id: this.max_node_id + 1, x: x, y: y, r: r, label: String(this.max_node_id + 1), color: color, shape: shape, selected: false};
+    addNode(x, y, r, color, shape, label = null) {
+        const node = {id: this.max_node_id + 1, x: x, y: y, r: r, label: label ? label : String(this.max_node_id + 1), color: color, shape: shape, selected: false};
         this.nodes.push(node);
         this.max_node_id++;
         this.nodes_by_id.set(node.id, node);
@@ -133,6 +133,12 @@ export class BinaryTree {
         this._recompute();
 
         return edge;
+    }
+
+    clearAll() {
+        this.nodes = [];
+        this.bst_edges = [];
+        this._recompute();
     }
 
     _get_widths(id) {

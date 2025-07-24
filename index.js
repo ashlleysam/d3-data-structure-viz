@@ -31,6 +31,7 @@ let context_add_right_child = null;
 let context_delete_edge = null;
 let context_save_file = null;
 let context_open_file = null;
+let context_clear_all = null;
 let ctx_menu_select_node_id = null;
 let ctx_menu_select_edge_id = null;
 let svg = null;
@@ -273,7 +274,7 @@ function getLeft(el) {
 }
 
 function showContextMenu(e) {
-  context_menu.style = `width: 300px; left: ${e.clientX - getLeft(container)}px; top: ${e.clientY - getTop(container)}px;`;
+  context_menu.style = `width: 300px; left: ${mouseX}px; top: ${mouseY}px;`;
   context_add_node.style = node_hover_id == null && edge_hover_id == null ? "" : "display: none;";
   context_delete_node.style = node_hover_id == null ? "display: none;" : "";
   context_edit_node.style = node_hover_id == null ? "display: none;" : "";
@@ -354,8 +355,14 @@ function tick() {
   }
 }
 
+function randIntRange(min, max) {
+      min = Math.ceil(min);
+      max = Math.floor(max);
+      return Math.floor(Math.random() * (max - min + 1)) + min;
+    }
+
 function addNode() {
-  const node = tree.addNode(mouseX, mouseY, RADIUS, NONE, "circle");
+  const node = tree.addNode(mouseX, mouseY, RADIUS, NONE, "circle", randIntRange(1, 100));
   if (node_selected_id !== null) {
     tree.getNodeById(node_selected_id).selected = false;
   }
@@ -527,6 +534,7 @@ function run() {
   context_delete_edge = document.getElementById("menu-item-delete-edge");
   context_save_file = document.getElementById("menu-item-save-file");
   context_open_file = document.getElementById("menu-item-open-file");
+  context_clear_all = document.getElementById("menu-item-clear-all");
   width = window.innerWidth;
   height = window.innerHeight;
 
@@ -627,6 +635,11 @@ function run() {
       alert("Error reading the file. Please try again.");
     };
     reader.readAsText(file);
+  }
+
+  context_clear_all.onclick = function(e) {
+    tree.clearAll();
+    redraw();
   }
 
   svg = d3.select("#d3_container")
