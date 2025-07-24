@@ -1,12 +1,16 @@
+import * as d3 from "https://cdn.jsdelivr.net/npm/d3@7/+esm";
 export class BinaryTree {
-    constructor(nodes, bst_edges, node_sep_x) {
+    constructor(nodes, bst_edges, width, height, force_strength, node_sep_x, node_sep_y, tick) {
         this.nodes = nodes;
         this.bst_edges = bst_edges;
         this.max_node_id = Math.max(...nodes.map(d => d.id));
         this.max_edge_id = Math.max(...bst_edges.map(d => d.id));
-        this.nodes_by_id = new Map(nodes.map((d, i) => [d.id, d]));
-        this.edges_by_id = new Map(bst_edges.map((d, i) => [d.id, d]));
+        this.nodes_by_id = new Map(nodes.map(d => [d.id, d]));
+        this.edges_by_id = new Map(bst_edges.map(d => [d.id, d]));
         this.node_sep_x = node_sep_x;
+        this.node_sep_y = node_sep_y;
+        this.force_strength = force_strength;
+        this.tick = tick;
         this.descendants;
         this.leftChild;
         this.rightChild;
@@ -14,6 +18,14 @@ export class BinaryTree {
         this.roots;
 
         this._recompute();
+
+        this.simulation =
+            d3.forceSimulation(this.nodes)
+                .alphaTarget(0.3)
+                .force("center", d3.forceCenter(width / 2, height / 2))
+                .force("collide", d3.forceCollide(d => d.r))
+                .force("BST", BinaryTree.forceBinaryTree(this.bst_edges, this.force_strength, this.node_sep_x, this.node_sep_y))
+                .on("tick", tick);
     }
 
     _compute_descendants(node_id, path) {
@@ -62,6 +74,42 @@ export class BinaryTree {
         // Recursively compute the width needed to ensure
         // that the subtrees don't overlap
         this.roots.forEach(id => this._get_widths(id));
+    }
+
+    static forceBinaryTree(edges, strength, node_sep_x, node_sep_y) {
+        // Apply a force to align the nodes into a binary tree
+        function force(alpha) {
+            edges.forEach(link => {
+            let par = link.parent;
+            let child = link.child;
+            // The position we want to move the child to
+            let expect_x = par.x;
+            if (link.type == "left") {
+                expect_x -= child.bst_width_right + node_sep_x;
+            } else {
+                expect_x += child.bst_width_left + node_sep_x;
+            }
+            let expect_y = par.y + node_sep_y;
+            // Modify the velocity to move it towards the desired location
+            // x alignment is slightly more important, so make the force stronger
+            child.vx += (expect_x - child.x) * strength * 1.05 * alpha;
+            child.vy += (expect_y - child.y) * strength * alpha;
+            });
+        }
+
+        return force;
+    }
+
+    refreshSim(width, height) {
+        this.simulation
+            .nodes(this.nodes)
+            .force("BST", BinaryTree.forceBinaryTree(this.bst_edges, this.force_strength, this.node_sep_x, this.node_sep_y))
+            .force("center", d3.forceCenter(width / 2, height / 2))
+            .alphaTarget(0.3);
+    }
+
+    restartSim() {
+        this.simulation.alphaTarget(0.3).restart();
     }
 
     getNodeById(id) {
@@ -170,12 +218,14 @@ export class BinaryTree {
         return JSON.stringify({
             nodes: nodes_dict,
             bst_edges: edges_dict,
-            node_sep_x: this.node_sep_x
+            node_sep_x: this.node_sep_x,
+            node_sep_y: this.node_sep_y,
+            force_strength: this.force_strength
         });
     }
 
-    static fromString(jsonString) {
+    static fromString(jsonString, width, height, tick) {
         const json = JSON.parse(jsonString);
-        return new BinaryTree(json.nodes, json.bst_edges, json.node_sep_x);
+        return new BinaryTree(json.nodes, json.bst_edges, width, height, json.force_strength, json.node_sep_x,  json.node_sep_y, tick);
      }
 }

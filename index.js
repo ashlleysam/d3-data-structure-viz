@@ -14,7 +14,7 @@ const BORDER_COLOR_MAP = new Map([[RED, "black"], [BLACK, "white"], [NONE, "blac
 const RADIUS = 50;
 const NODE_SEP_X = 110;
 const NODE_SEP_Y = 130;
-let container = null;
+
 let node_selected_id = null;
 let node_hover_id = null;
 let edge_hover_id = null;
@@ -36,7 +36,6 @@ let ctx_menu_select_node_id = null;
 let ctx_menu_select_edge_id = null;
 let svg = null;
 let tree = null;
-let simulation = null;
 let g_link, link, g_misc, draw_edge, g_node, node, circles, triangles, text = null;
 let data_menu, data_input, none_button, red_button, black_button, circle_button, triangle_button = null;
 let mouseX, mouseY = null;
@@ -173,10 +172,7 @@ function triangle_points(r) {
 }
 
 function redraw() {
-  simulation
-    .nodes(tree.nodes)
-    .force("BST", forceBinaryTree(tree))
-    .alphaTarget(0.3);
+  tree.refreshSim(width, height);
 
   const update_nodes = g_node.selectAll(".node").data(tree.nodes);
 
@@ -235,42 +231,6 @@ function redraw() {
     .on("mouseover", edge_onmouseover)
     .on("mouseout", edge_onmouseout)
     .merge(update_links);
-}
-
-function forceBinaryTree(tree, strength = 0.1) {
-  // Apply a force to align the nodes into a binary tree
-  function force(alpha) {
-    tree.bst_edges.forEach(link => {
-      let par = link.parent;
-      let child = link.child;
-      // The position we want to move the child to
-      let expect_x = par.x;
-      if (link.type == "left") {
-        expect_x -= child.bst_width_right + NODE_SEP_X;
-      } else {
-        expect_x += child.bst_width_left + NODE_SEP_X;
-      }
-      let expect_y = par.y + NODE_SEP_Y;
-      // Modify the velocity to move it towards the desired location
-      // x alignment is slightly more important, so make the force stronger
-      child.vx += (expect_x - child.x) * strength * 1.05 * alpha;
-      child.vy += (expect_y - child.y) * strength * alpha;
-    });
-  }
-
-  return force;
-}
-
-function getTop(el) {
-  // Find the top of an element relative to the window
-  // https://stackoverflow.com/a/68805286
-  return el.offsetTop + (el.offsetParent && getTop(el.offsetParent));
-}
-
-function getLeft(el) {
-  // Find the left of an element relative to the window
-  // https://stackoverflow.com/a/68805286
-  return el.offsetLeft + (el.offsetParent && getLeft(el.offsetParent));
 }
 
 function showContextMenu(e) {
@@ -359,7 +319,7 @@ function randIntRange(min, max) {
       min = Math.ceil(min);
       max = Math.floor(max);
       return Math.floor(Math.random() * (max - min + 1)) + min;
-    }
+}
 
 function addNode() {
   const node = tree.addNode(mouseX, mouseY, RADIUS, NONE, "circle", randIntRange(1, 100));
@@ -508,7 +468,7 @@ function edge_onmouseout(event, d) {
 }
 
 function dragstarted(event) {
-  if (!event.active) simulation.alphaTarget(0.3).restart();
+  if (!event.active) tree.restartSim();
   event.subject.fx = event.subject.x;
   event.subject.fy = event.subject.y;
 }
@@ -524,7 +484,6 @@ function dragended(event) {
 }
 
 function run() {
-  container = document.getElementById("d3_container")
   context_menu = document.getElementById("contextMenu");
   context_add_node = document.getElementById("menu-item-add-node");
   context_delete_node = document.getElementById("menu-item-delete-node");
@@ -624,8 +583,7 @@ function run() {
     reader.onload = () => {
       const res = reader.result;
       try {
-        const load_tree = BinaryTree.fromString(res);
-        tree = load_tree;
+        tree = BinaryTree.fromString(res, width, height, tick);
         redraw();
       } catch (error) {
         alert("Malformed file. Please try again.");
@@ -651,16 +609,17 @@ function run() {
       e.preventDefault();
     });
 
-  tree = new BinaryTree([
-    { id: 0, x: 0, y: 0, r: RADIUS, label: "0", color: RED, selected: false, shape: "circle" },
-    { id: 1, x: 0, y: 0, r: RADIUS, label: "1", color: BLACK, selected: false, shape: "circle" },
-    { id: 2, x: 380, y: 100, r: RADIUS, label: "2", color: NONE, selected: false, shape: "circle" },
-    { id: 3, x: 0, y: 0, r: RADIUS, label: "3", color: NONE, selected: false, shape: "circle" },
-    { id: 4, x: 380, y: 100, r: RADIUS, label: "4", color: "black", selected: false, shape: "circle" },
-    { id: 5, x: 380, y: 100, r: RADIUS, label: "5", color: RED, selected: false, shape: "circle" },
-    { id: 6, x: 380, y: 100, r: RADIUS, label: "6", color: "black", selected: false, shape: "circle" },
-    { id: 7, x: 380, y: 100, r: RADIUS, label: "7", color: "black", selected: false, shape: "circle" },
-  ],
+  tree = new BinaryTree(
+    [
+      { id: 0, x: 0, y: 0, r: RADIUS, label: "0", color: RED, selected: false, shape: "circle" },
+      { id: 1, x: 0, y: 0, r: RADIUS, label: "1", color: BLACK, selected: false, shape: "circle" },
+      { id: 2, x: 380, y: 100, r: RADIUS, label: "2", color: NONE, selected: false, shape: "circle" },
+      { id: 3, x: 0, y: 0, r: RADIUS, label: "3", color: NONE, selected: false, shape: "circle" },
+      { id: 4, x: 380, y: 100, r: RADIUS, label: "4", color: "black", selected: false, shape: "circle" },
+      { id: 5, x: 380, y: 100, r: RADIUS, label: "5", color: RED, selected: false, shape: "circle" },
+      { id: 6, x: 380, y: 100, r: RADIUS, label: "6", color: "black", selected: false, shape: "circle" },
+      { id: 7, x: 380, y: 100, r: RADIUS, label: "7", color: "black", selected: false, shape: "circle" },
+    ],
     [
       { id: 0, parent: 1, child: 0, type: "left", selected: false },
       { id: 1, parent: 1, child: 3, type: "right", selected: false },
@@ -670,21 +629,13 @@ function run() {
       { id: 5, parent: 2, child: 6, type: "left", selected: false },
       { id: 6, parent: 5, child: 7, type: "right", selected: false },
     ],
-    NODE_SEP_X);
-
-  simulation = d3
-    .forceSimulation(tree.nodes)
-    .alphaTarget(0.3)
-    .force("center", d3.forceCenter(width / 2, height / 2))
-    .force("collide", d3.forceCollide(d => d.r))
-    .force("BST", forceBinaryTree(tree))
-    .on("tick", tick);
+    width, height, 0.1, NODE_SEP_X, NODE_SEP_Y, tick);
 
   window.onresize = function () {
     width = window.innerWidth;
     height = window.innerHeight;
     svg.attr("width", width).attr("height", height);
-    simulation.force("center", d3.forceCenter(width / 2, height / 2));
+    tree.refreshSim(width, height);
   }
 
   g_link = svg.append("g").attr("class", "links");
