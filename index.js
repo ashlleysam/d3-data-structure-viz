@@ -19,52 +19,27 @@ let node_hover_id = null;
 let edge_hover_id = null;
 let edge_start_id = null;
 let child_type = null;
-
-var width = window.innerWidth
-var height = window.innerHeight;
-const context_menu = document.getElementById("contextMenu");
-const context_add_node = document.getElementById("menu-item-add-node");
-const context_delete_node = document.getElementById("menu-item-delete-node");
-const context_edit_node = document.getElementById("menu-item-edit-node");
-const context_add_left_child = document.getElementById("menu-item-add-left-child");
-const context_add_right_child = document.getElementById("menu-item-add-right-child");
-const context_delete_edge = document.getElementById("menu-item-delete-edge");
-const context_save_file = document.getElementById("menu-item-save-file");
-const context_open_file = document.getElementById("menu-item-open-file");
+let width = window.innerWidth
+let height = window.innerHeight;
+let context_menu = null;
+let context_add_node = null;
+let context_delete_node = null;
+let context_edit_node = null;
+let context_add_left_child = null;
+let context_add_right_child = null;
+let context_delete_edge = null;
+let context_save_file = null;
+let context_open_file = null;
 let ctx_menu_select_node_id = null;
 let ctx_menu_select_edge_id = null;
+let svg = null;
+let tree = null;
+let simulation = null;
+let g_link, link, g_misc, draw_edge, g_node, node, circles, triangles, text = null;
+let data_menu, data_input, none_button, red_button, black_button, circle_button, triangle_button = null;
+let mouseX, mouseY = null;
 
-context_add_node.onclick = function(e) {
-  hideContextMenu();
-  addNode();
-}
-
-context_delete_node.onclick = function(e) {
-  hideContextMenu();
-  if (ctx_menu_select_node_id !== null) {
-    deleteNode(ctx_menu_select_node_id);
-    ctx_menu_select_node_id = null;
-  }
-}
-
-context_delete_node.onclick = function(e) {
-  hideContextMenu();
-  if (ctx_menu_select_node_id !== null) {
-    deleteNode(ctx_menu_select_node_id);
-    ctx_menu_select_node_id = null;
-  }
-}
-
-context_delete_edge.onclick = function(e) {
-  hideContextMenu();
-
-  if (ctx_menu_select_edge_id !== null) {
-    deleteEdge(ctx_menu_select_edge_id);
-    ctx_menu_select_edge_id = null;
-  }
-}
-
-const saveFile = async (blob, suggestedName) => {
+async function saveFile(blob, suggestedName) {
   // Feature detection. The API needs to be supported
   // and the app not run in an iframe.
   const supportsFileSystemAccess =
@@ -91,7 +66,7 @@ const saveFile = async (blob, suggestedName) => {
     } catch (err) {
       // Fail silently if the user has simply canceled the dialog.
       if (err.name !== 'AbortError') {
-        console.error(err.name, err.message);        
+        console.error(err.name, err.message);
       }
       return;
     }
@@ -114,7 +89,7 @@ const saveFile = async (blob, suggestedName) => {
   }, 1000);
 };
 
-const openFileOrFiles = async (multiple = false, types = null) => {
+async function openFileOrFiles(multiple = false, types = null) {
   // Feature detection. The API needs to be supported
   // and the app not run in an iframe.
   const supportsFileSystemAccess =
@@ -186,285 +161,14 @@ const openFileOrFiles = async (multiple = false, types = null) => {
   });
 };
 
-context_save_file.onclick = async (e) => {
-  hideContextMenu();
-  const jsonString = tree.stringify();
-  const blob = new Blob([jsonString], { type: 'text/plain' });
-  saveFile(blob, "binary_tree.json");
-}
-
-context_open_file.onclick = async (e) => {
-  hideContextMenu();
-  const types = [
-    {
-      description: "JSON Files",
-      accept: {
-        "application/json": [".json"],
-      },
-    },
-    {
-      description: "Text Files",
-      accept: {
-        "text/plain": [".txt"],
-      },
-    },
-  ];
-  const file = await openFileOrFiles(false, types);
-  if (!file) {
-    return;
-  }
-  const reader = new FileReader();
-  reader.onload = () => {
-    const res = reader.result;
-    try {
-      const load_tree = BinaryTree.fromString(res);
-      tree = load_tree;
-      redraw();
-    } catch (error) {
-      alert("Malformed file. Please try again.");
-    }
-  };
-  reader.onerror = () => {
-    alert("Error reading the file. Please try again.");
-  };
-  reader.readAsText(file);
-}
-
-context_edit_node.onclick = function(e) {
-  hideContextMenu();
-  if (ctx_menu_select_node_id !== null) {
-    selectNode(ctx_menu_select_node_id);
-    ctx_menu_select_node_id = null;
-  }
-}
-
-context_add_left_child.onclick = function(e) {
-  hideContextMenu();
-  if (ctx_menu_select_node_id !== null) {
-    edge_start_id = ctx_menu_select_node_id;
-    child_type = "left";
-  }
-}
-
-context_add_right_child.onclick = function(e) {
-  hideContextMenu();
-  if (ctx_menu_select_node_id !== null) {
-    edge_start_id = ctx_menu_select_node_id;
-    child_type = "right";
-  }
-}
-
-let svg = d3.select("#d3_container")
-  .append("svg")
-  .attr("width", width)
-  .attr("height", height)
-  .on("contextmenu", function(e) {
-    showContextMenu(e);
-    e.preventDefault();
-  });
-
-let tree = new BinaryTree([
-    {id: 0, x: 0, y: 0, r: RADIUS, label: "0", color: RED, selected: false, shape: "circle"}, 
-    {id: 1, x: 0, y: 0, r: RADIUS, label: "1", color: BLACK, selected: false, shape: "circle"}, 
-    {id: 2, x: 380, y: 100, r: RADIUS, label: "2", color: NONE, selected: false, shape: "circle"},
-    {id: 3, x: 0, y: 0, r: RADIUS, label: "3", color: NONE, selected: false, shape: "circle"},
-    {id: 4, x: 380, y: 100, r: RADIUS, label: "4", color: "black", selected: false, shape: "circle"},
-    {id: 5, x: 380, y: 100, r: RADIUS, label: "5", color: RED, selected: false, shape: "circle"},
-    {id: 6, x: 380, y: 100, r: RADIUS, label: "6", color: "black", selected: false, shape: "circle"},
-    {id: 7, x: 380, y: 100, r: RADIUS, label: "7", color: "black", selected: false, shape: "circle"},
-  ],
-  [
-    {id: 0, parent: 1, child: 0, type: "left", selected: false},
-    {id: 1, parent: 1, child: 3, type: "right", selected: false},
-    {id: 2, parent: 3, child: 4, type: "right", selected: false},
-    {id: 3, parent: 3, child: 2, type: "left", selected: false},
-    {id: 4, parent: 0, child: 5, type: "right", selected: false},
-    {id: 5, parent: 2, child: 6, type: "left", selected: false},
-    {id: 6, parent: 5, child: 7, type: "right", selected: false},
-  ],
-  NODE_SEP_X);
-
-const simulation = d3
-  .forceSimulation(tree.nodes)
-  .alphaTarget(0.3)
-  .force("center", d3.forceCenter(width/2,height/2))
-  .force("collide", d3.forceCollide(d => d.r))
-  .force("BST", forceBinaryTree(tree))
-  .on("tick", tick);
-
-window.onresize = function() {
-  width = window.innerWidth;
-  height = window.innerHeight;
-  svg.attr("width", width).attr("height", height);
-  simulation.force("center", d3.forceCenter(width/2,height/2));
-}
-
-let g_link = svg.append("g").attr("class", "links");
-let link = g_link
-  .selectAll(".link,.link-selected")
-  .data(tree.bst_edges)
-  .enter()
-  .append("path")
-  .attr("class", d => d.selected ? "link-selected" : "link")
-  .on("mouseover", edge_onmouseover)
-  .on("mouseout", edge_onmouseout);
-
-let g_misc = svg.append("g").attr("class", "misc");
-let draw_edge = g_misc.append("path").attr("class", "link-no-hover");
-
-let g_node = svg.append("g").attr("class", "nodes");
-let node = g_node
-  .selectAll(".node")
-  .data(tree.nodes)
-  .enter()
-  .append("g")
-  .attr("class", "node")
-  .on("mouseover", node_onmouseover)
-  .on("mouseout", node_onmouseout)
-  .on("dblclick", node_dblclick)
-  .on("click", node_click)
-  .call(d3.drag().on("start", dragstarted).on("drag", dragged).on("end", dragended));
-
-let circles = node
-  .filter(d => d.shape === "circle")
-  .append("circle")
-  .attr("class", "nodeShape")
-  .attr("r", d => d.r)
-  .style("fill", d => COLOR_MAP.get(d.color))
-  .attr("stroke", d => BORDER_COLOR_MAP.get(d.color))
-  .attr("stroke-width", d => d.selected ? "4px" : "1px");
-
 function degToRad(a) {
   return a * (Math.PI / 180);
 }
 
 function triangle_points(r) {
-  let r1 = 1.5*r;
-  return `${r1*Math.cos(degToRad(90))},${-r1*Math.sin(degToRad(90))} ${r1*Math.cos(degToRad(210))},${-r1*Math.sin(degToRad(210))} ${r1*Math.cos(degToRad(330))},${-r1*Math.sin(degToRad(330))}`;
+  let r1 = 1.5 * r;
+  return `${r1 * Math.cos(degToRad(90))},${-r1 * Math.sin(degToRad(90))} ${r1 * Math.cos(degToRad(210))},${-r1 * Math.sin(degToRad(210))} ${r1 * Math.cos(degToRad(330))},${-r1 * Math.sin(degToRad(330))}`;
 }
-
-let triangles = node
-  .filter(d => d.shape === "triangle")
-  .append("polygon")
-  .attr("class", "nodeShape")
-  .attr("points", d => triangle_points(d.r))
-  .style("fill", d => COLOR_MAP.get(d.color))
-  .attr("stroke", d => BORDER_COLOR_MAP.get(d.color))
-  .attr("stroke-width", d => d.selected ? "4px" : "1px");
-
-let text = node
-  .append("text")
-  .attr("class", "nodeText")
-  .text(d => d.label)
-  .attr("text-anchor", "middle")
-  .attr("dominant-baseline", "central")
-  .attr("font-size", "2.5em")
-  .attr("font-family", "sans-serif")
-  .attr("fill", d => TEXT_COLOR_MAP.get(d.color));
-
-const data_menu = document.getElementById("input_container");
-const data_input = document.getElementById("nodeData");
-disable_edit_menu();
-data_input.oninput = function(ev) {
-  if (node_selected_id == null) return;
-  tree.getNodeById(node_selected_id).label = data_input.value;
-  text.text(d => d.label);
-};
-data_input.value = "";
-const none_button = document.getElementById("noneButton");
-none_button.onclick = setSelectedColor(NONE);
-const red_button = document.getElementById("redButton");
-red_button.onclick = setSelectedColor(RED);
-const black_button = document.getElementById("blackButton");
-black_button.onclick = setSelectedColor(BLACK);
-none_button.checked = false;
-red_button.checked = false;
-black_button.checked = false;
-none_button.disabled = true;
-red_button.disabled = true;
-black_button.disabled = true;
-
-const circle_button = document.getElementById("circleButton");
-circle_button.onclick = setSelectedShape("circle");
-const triangle_button = document.getElementById("triangleButton");
-triangle_button.onclick = setSelectedShape("triangle");
-circle_button.checked = false;
-triangle_button.checked = false;
-circle_button.disabled = true;
-triangle_button.disabled = true;
-
-var mouseX, mouseY = null;
-
-d3.select("body")
-  .on("keydown", function(e) {
-    if (e.key == ESCAPE) {
-      deselectNode();
-    } else if (e.key == 'n') {
-      addNode();
-    } else if (e.key == 'd') {
-      if (node_hover_id !== null) {
-        deleteNode(node_hover_id);
-        node_hover_id = null;
-      } else if (edge_hover_id !== null) {
-        deleteEdge(edge_hover_id);
-        edge_hover_id = null;
-      }
-    } else if (e.key == 'ArrowRight') {
-      if (node_selected_id !== null) {
-        const right_child = tree.rightChild.has(node_selected_id) ? tree.rightChild.get(node_selected_id) : null;
-        if (right_child !== null) {
-          selectNode(right_child);
-        }
-      }
-    } else if (e.key == 'ArrowLeft') {
-      if (node_selected_id !== null) {
-        const left_child = tree.leftChild.has(node_selected_id) ? tree.leftChild.get(node_selected_id) : null;
-        if (left_child !== null) {
-          selectNode(left_child);
-        }
-      }
-    } else if (e.key == 'ArrowUp') {
-      if (node_selected_id !== null) {
-        const parent = tree.parent.has(node_selected_id) ? tree.parent.get(node_selected_id) : null;
-        if (parent !== null) {
-          selectNode(parent);
-        }
-      }
-    }
-  })
-  .on('mousemove', function (e) {
-    [mouseX, mouseY] = d3.pointer(e);
-  })
-  .on("click", function(e) {
-    // This event is triggered for Safari on right clicks
-    // as well as contextmenu, so we need to intercept it
-    if (e.ctrlKey) return;
-
-    // Always hide the context menu on the next click
-    hideContextMenu();
-
-    // If there is a selected node, deselect it if the click isn't on either
-    // the data menu, the edit context menu, or on the node itself
-    if (!data_menu.contains(e.target) && !context_edit_node.contains(e.target) && node_selected_id !== null) {
-      const sel_node = node.filter(d => d.id === node_selected_id).nodes()[0];
-      if (!sel_node.contains(e.target)) {
-        deselectNode();
-      }
-    }
-
-    if (!data_menu.contains(e.target) && ctx_menu_select_edge_id !== null) {
-      tree.getEdgeById(ctx_menu_select_edge_id).selected = false;
-      link.attr("class", d => d.selected ? "link-selected" : "link");
-      ctx_menu_select_edge_id = null;
-    }
-
-    if (!context_add_left_child.contains(e.target) && !context_add_right_child.contains(e.target)) {
-      edge_start_id = null;
-      child_type = null;
-      draw_edge.attr("d", "");
-    }
-  });
-
 
 function redraw() {
   simulation
@@ -472,7 +176,7 @@ function redraw() {
     .force("BST", forceBinaryTree(tree))
     .alphaTarget(0.3);
 
-  var update_nodes = g_node.selectAll(".node").data(tree.nodes);
+  const update_nodes = g_node.selectAll(".node").data(tree.nodes);
 
   node = update_nodes
     .enter()
@@ -520,7 +224,7 @@ function redraw() {
 
   update_nodes.exit().remove();
 
-  var update_links = g_link.selectAll(".link,.link-selected").data(tree.bst_edges);
+  const update_links = g_link.selectAll(".link,.link-selected").data(tree.bst_edges);
   update_links.exit().remove();
   link = update_links
     .enter()
@@ -531,9 +235,8 @@ function redraw() {
     .merge(update_links);
 }
 
-
-// Apply a force to align the nodes into a binary tree
 function forceBinaryTree(tree, strength = 0.1) {
+  // Apply a force to align the nodes into a binary tree
   function force(alpha) {
     tree.bst_edges.forEach(link => {
       let par = link.parent;
@@ -581,7 +284,7 @@ function showContextMenu(e) {
   } else {
     context_delete_edge.style = "display: none;";
   }
-  
+
   ctx_menu_select_node_id = node_hover_id;
   ctx_menu_select_edge_id = edge_hover_id;
 }
@@ -709,7 +412,7 @@ function selectNode(node_id) {
   node.selectAll(".nodeShape").attr("stroke-width", d => d.selected ? "4px" : "1px");
 
   node_selected_id = node_id;
-  
+
   data_input.value = node_data.label;
   none_button.checked = false;
   red_button.checked = false;
@@ -799,3 +502,317 @@ function dragended(event) {
   event.subject.fx = null;
   event.subject.fy = null;
 }
+
+function run() {
+  context_menu = document.getElementById("contextMenu");
+  context_add_node = document.getElementById("menu-item-add-node");
+  context_delete_node = document.getElementById("menu-item-delete-node");
+  context_edit_node = document.getElementById("menu-item-edit-node");
+  context_add_left_child = document.getElementById("menu-item-add-left-child");
+  context_add_right_child = document.getElementById("menu-item-add-right-child");
+  context_delete_edge = document.getElementById("menu-item-delete-edge");
+  context_save_file = document.getElementById("menu-item-save-file");
+  context_open_file = document.getElementById("menu-item-open-file");
+
+  context_add_node.onclick = function (e) {
+    hideContextMenu();
+    addNode();
+  }
+
+  context_delete_node.onclick = function (e) {
+    hideContextMenu();
+    if (ctx_menu_select_node_id !== null) {
+      deleteNode(ctx_menu_select_node_id);
+      ctx_menu_select_node_id = null;
+    }
+  }
+
+  context_delete_node.onclick = function (e) {
+    hideContextMenu();
+    if (ctx_menu_select_node_id !== null) {
+      deleteNode(ctx_menu_select_node_id);
+      ctx_menu_select_node_id = null;
+    }
+  }
+
+  context_delete_edge.onclick = function (e) {
+    hideContextMenu();
+
+    if (ctx_menu_select_edge_id !== null) {
+      deleteEdge(ctx_menu_select_edge_id);
+      ctx_menu_select_edge_id = null;
+    }
+  }
+
+
+  context_edit_node.onclick = function (e) {
+    hideContextMenu();
+    if (ctx_menu_select_node_id !== null) {
+      selectNode(ctx_menu_select_node_id);
+      ctx_menu_select_node_id = null;
+    }
+  }
+
+  context_add_left_child.onclick = function (e) {
+    hideContextMenu();
+    if (ctx_menu_select_node_id !== null) {
+      edge_start_id = ctx_menu_select_node_id;
+      child_type = "left";
+    }
+  }
+
+  context_add_right_child.onclick = function (e) {
+    hideContextMenu();
+    if (ctx_menu_select_node_id !== null) {
+      edge_start_id = ctx_menu_select_node_id;
+      child_type = "right";
+    }
+  }
+
+  context_save_file.onclick = async (e) => {
+    hideContextMenu();
+    const jsonString = tree.stringify();
+    const blob = new Blob([jsonString], { type: 'text/plain' });
+    saveFile(blob, "binary_tree.json");
+  }
+
+  context_open_file.onclick = async (e) => {
+    hideContextMenu();
+    const types = [
+      {
+        description: "JSON Files",
+        accept: {
+          "application/json": [".json"],
+        },
+      },
+      {
+        description: "Text Files",
+        accept: {
+          "text/plain": [".txt"],
+        },
+      },
+    ];
+    const file = await openFileOrFiles(false, types);
+    if (!file) {
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const res = reader.result;
+      try {
+        const load_tree = BinaryTree.fromString(res);
+        tree = load_tree;
+        redraw();
+      } catch (error) {
+        alert("Malformed file. Please try again.");
+      }
+    };
+    reader.onerror = () => {
+      alert("Error reading the file. Please try again.");
+    };
+    reader.readAsText(file);
+  }
+
+  svg = d3.select("#d3_container")
+    .append("svg")
+    .attr("width", width)
+    .attr("height", height)
+    .on("contextmenu", function (e) {
+      showContextMenu(e);
+      e.preventDefault();
+    });
+
+  tree = new BinaryTree([
+    { id: 0, x: 0, y: 0, r: RADIUS, label: "0", color: RED, selected: false, shape: "circle" },
+    { id: 1, x: 0, y: 0, r: RADIUS, label: "1", color: BLACK, selected: false, shape: "circle" },
+    { id: 2, x: 380, y: 100, r: RADIUS, label: "2", color: NONE, selected: false, shape: "circle" },
+    { id: 3, x: 0, y: 0, r: RADIUS, label: "3", color: NONE, selected: false, shape: "circle" },
+    { id: 4, x: 380, y: 100, r: RADIUS, label: "4", color: "black", selected: false, shape: "circle" },
+    { id: 5, x: 380, y: 100, r: RADIUS, label: "5", color: RED, selected: false, shape: "circle" },
+    { id: 6, x: 380, y: 100, r: RADIUS, label: "6", color: "black", selected: false, shape: "circle" },
+    { id: 7, x: 380, y: 100, r: RADIUS, label: "7", color: "black", selected: false, shape: "circle" },
+  ],
+    [
+      { id: 0, parent: 1, child: 0, type: "left", selected: false },
+      { id: 1, parent: 1, child: 3, type: "right", selected: false },
+      { id: 2, parent: 3, child: 4, type: "right", selected: false },
+      { id: 3, parent: 3, child: 2, type: "left", selected: false },
+      { id: 4, parent: 0, child: 5, type: "right", selected: false },
+      { id: 5, parent: 2, child: 6, type: "left", selected: false },
+      { id: 6, parent: 5, child: 7, type: "right", selected: false },
+    ],
+    NODE_SEP_X);
+
+  simulation = d3
+    .forceSimulation(tree.nodes)
+    .alphaTarget(0.3)
+    .force("center", d3.forceCenter(width / 2, height / 2))
+    .force("collide", d3.forceCollide(d => d.r))
+    .force("BST", forceBinaryTree(tree))
+    .on("tick", tick);
+
+  window.onresize = function () {
+    width = window.innerWidth;
+    height = window.innerHeight;
+    svg.attr("width", width).attr("height", height);
+    simulation.force("center", d3.forceCenter(width / 2, height / 2));
+  }
+
+  g_link = svg.append("g").attr("class", "links");
+  link = g_link
+    .selectAll(".link,.link-selected")
+    .data(tree.bst_edges)
+    .enter()
+    .append("path")
+    .attr("class", d => d.selected ? "link-selected" : "link")
+    .on("mouseover", edge_onmouseover)
+    .on("mouseout", edge_onmouseout);
+
+  g_misc = svg.append("g").attr("class", "misc");
+  draw_edge = g_misc.append("path").attr("class", "link-no-hover");
+
+  g_node = svg.append("g").attr("class", "nodes");
+  node = g_node
+    .selectAll(".node")
+    .data(tree.nodes)
+    .enter()
+    .append("g")
+    .attr("class", "node")
+    .on("mouseover", node_onmouseover)
+    .on("mouseout", node_onmouseout)
+    .on("dblclick", node_dblclick)
+    .on("click", node_click)
+    .call(d3.drag().on("start", dragstarted).on("drag", dragged).on("end", dragended));
+
+  circles = node
+    .filter(d => d.shape === "circle")
+    .append("circle")
+    .attr("class", "nodeShape")
+    .attr("r", d => d.r)
+    .style("fill", d => COLOR_MAP.get(d.color))
+    .attr("stroke", d => BORDER_COLOR_MAP.get(d.color))
+    .attr("stroke-width", d => d.selected ? "4px" : "1px");
+
+
+  triangles = node
+    .filter(d => d.shape === "triangle")
+    .append("polygon")
+    .attr("class", "nodeShape")
+    .attr("points", d => triangle_points(d.r))
+    .style("fill", d => COLOR_MAP.get(d.color))
+    .attr("stroke", d => BORDER_COLOR_MAP.get(d.color))
+    .attr("stroke-width", d => d.selected ? "4px" : "1px");
+
+  text = node
+    .append("text")
+    .attr("class", "nodeText")
+    .text(d => d.label)
+    .attr("text-anchor", "middle")
+    .attr("dominant-baseline", "central")
+    .attr("font-size", "2.5em")
+    .attr("font-family", "sans-serif")
+    .attr("fill", d => TEXT_COLOR_MAP.get(d.color));
+
+  data_menu = document.getElementById("input_container");
+  data_input = document.getElementById("nodeData");
+  disable_edit_menu();
+  data_input.oninput = function (ev) {
+    if (node_selected_id == null) return;
+    tree.getNodeById(node_selected_id).label = data_input.value;
+    text.text(d => d.label);
+  };
+  data_input.value = "";
+  none_button = document.getElementById("noneButton");
+  none_button.onclick = setSelectedColor(NONE);
+  red_button = document.getElementById("redButton");
+  red_button.onclick = setSelectedColor(RED);
+  black_button = document.getElementById("blackButton");
+  black_button.onclick = setSelectedColor(BLACK);
+  none_button.checked = false;
+  red_button.checked = false;
+  black_button.checked = false;
+  none_button.disabled = true;
+  red_button.disabled = true;
+  black_button.disabled = true;
+
+  circle_button = document.getElementById("circleButton");
+  circle_button.onclick = setSelectedShape("circle");
+  triangle_button = document.getElementById("triangleButton");
+  triangle_button.onclick = setSelectedShape("triangle");
+  circle_button.checked = false;
+  triangle_button.checked = false;
+  circle_button.disabled = true;
+  triangle_button.disabled = true;
+
+  d3.select("#data_playground")
+    .on("keydown", function (e) {
+      if (e.key == ESCAPE) {
+        deselectNode();
+      } else if (e.key == 'n') {
+        addNode();
+      } else if (e.key == 'd') {
+        if (node_hover_id !== null) {
+          deleteNode(node_hover_id);
+          node_hover_id = null;
+        } else if (edge_hover_id !== null) {
+          deleteEdge(edge_hover_id);
+          edge_hover_id = null;
+        }
+      } else if (e.key == 'ArrowRight') {
+        if (node_selected_id !== null) {
+          const right_child = tree.rightChild.has(node_selected_id) ? tree.rightChild.get(node_selected_id) : null;
+          if (right_child !== null) {
+            selectNode(right_child);
+          }
+        }
+      } else if (e.key == 'ArrowLeft') {
+        if (node_selected_id !== null) {
+          const left_child = tree.leftChild.has(node_selected_id) ? tree.leftChild.get(node_selected_id) : null;
+          if (left_child !== null) {
+            selectNode(left_child);
+          }
+        }
+      } else if (e.key == 'ArrowUp') {
+        if (node_selected_id !== null) {
+          const parent = tree.parent.has(node_selected_id) ? tree.parent.get(node_selected_id) : null;
+          if (parent !== null) {
+            selectNode(parent);
+          }
+        }
+      }
+    })
+    .on('mousemove', function (e) {
+      [mouseX, mouseY] = d3.pointer(e);
+    })
+    .on("click", function (e) {
+      // This event is triggered for Safari on right clicks
+      // as well as contextmenu, so we need to intercept it
+      if (e.ctrlKey) return;
+
+      // Always hide the context menu on the next click
+      hideContextMenu();
+
+      // If there is a selected node, deselect it if the click isn't on either
+      // the data menu, the edit context menu, or on the node itself
+      if (!data_menu.contains(e.target) && !context_edit_node.contains(e.target) && node_selected_id !== null) {
+        const sel_node = node.filter(d => d.id === node_selected_id).nodes()[0];
+        if (!sel_node.contains(e.target)) {
+          deselectNode();
+        }
+      }
+
+      if (!data_menu.contains(e.target) && ctx_menu_select_edge_id !== null) {
+        tree.getEdgeById(ctx_menu_select_edge_id).selected = false;
+        link.attr("class", d => d.selected ? "link-selected" : "link");
+        ctx_menu_select_edge_id = null;
+      }
+
+      if (!context_add_left_child.contains(e.target) && !context_add_right_child.contains(e.target)) {
+        edge_start_id = null;
+        child_type = null;
+        draw_edge.attr("d", "");
+      }
+    });
+}
+
+run();
