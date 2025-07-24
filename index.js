@@ -14,6 +14,7 @@ const BORDER_COLOR_MAP = new Map([[RED, "black"], [BLACK, "white"], [NONE, "blac
 const RADIUS = 50;
 const NODE_SEP_X = 110;
 const NODE_SEP_Y = 130;
+let container = null;
 let node_selected_id = null;
 let node_hover_id = null;
 let edge_hover_id = null;
@@ -259,8 +260,20 @@ function forceBinaryTree(tree, strength = 0.1) {
   return force;
 }
 
+function getTop(el) {
+  // Find the top of an element relative to the window
+  // https://stackoverflow.com/a/68805286
+  return el.offsetTop + (el.offsetParent && getTop(el.offsetParent));
+}
+
+function getLeft(el) {
+  // Find the left of an element relative to the window
+  // https://stackoverflow.com/a/68805286
+  return el.offsetLeft + (el.offsetParent && getLeft(el.offsetParent));
+}
+
 function showContextMenu(e) {
-  context_menu.style = `width: 300px; left: ${e.pageX}px; top: ${e.pageY}px;`;
+  context_menu.style = `width: 300px; left: ${e.clientX - getTop(container)}px; top: ${e.clientY - getLeft(container)}px;`;
   context_add_node.style = node_hover_id == null && edge_hover_id == null ? "" : "display: none;";
   context_delete_node.style = node_hover_id == null ? "display: none;" : "";
   context_edit_node.style = node_hover_id == null ? "display: none;" : "";
@@ -504,6 +517,7 @@ function dragended(event) {
 }
 
 function run() {
+  container = document.getElementById("d3_container")
   context_menu = document.getElementById("contextMenu");
   context_add_node = document.getElementById("menu-item-add-node");
   context_delete_node = document.getElementById("menu-item-delete-node");
@@ -513,6 +527,8 @@ function run() {
   context_delete_edge = document.getElementById("menu-item-delete-edge");
   context_save_file = document.getElementById("menu-item-save-file");
   context_open_file = document.getElementById("menu-item-open-file");
+  width = window.innerWidth;
+  height = window.innerHeight;
 
   context_add_node.onclick = function (e) {
     hideContextMenu();
