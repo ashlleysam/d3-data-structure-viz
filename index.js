@@ -273,7 +273,7 @@ function getLeft(el) {
 }
 
 function showContextMenu(e) {
-  context_menu.style = `width: 300px; left: ${e.clientX - getTop(container)}px; top: ${e.clientY - getLeft(container)}px;`;
+  context_menu.style = `width: 300px; left: ${e.clientX - getLeft(container)}px; top: ${e.clientY - getTop(container)}px;`;
   context_add_node.style = node_hover_id == null && edge_hover_id == null ? "" : "display: none;";
   context_delete_node.style = node_hover_id == null ? "display: none;" : "";
   context_edit_node.style = node_hover_id == null ? "display: none;" : "";
