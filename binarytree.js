@@ -1,4 +1,5 @@
 import * as d3 from "https://cdn.jsdelivr.net/npm/d3@7/+esm";
+
 export class BinaryTree {
     constructor(nodes, bst_edges, width, height, force_strength, node_sep_x, node_sep_y, tick) {
         this.nodes = nodes;
