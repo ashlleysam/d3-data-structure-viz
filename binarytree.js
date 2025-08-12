@@ -1,13 +1,13 @@
 import * as d3 from "https://cdn.jsdelivr.net/npm/d3@7/+esm";
 
 export class BinaryTree {
-    constructor(nodes, bst_edges, width, height, force_strength, node_sep_x, node_sep_y, tick) {
+    constructor(nodes, edges, width, height, force_strength, node_sep_x, node_sep_y, tick) {
         this.nodes = nodes;
-        this.bst_edges = bst_edges;
+        this.edges = edges;
         this.max_node_id = Math.max(...nodes.map(d => d.id));
-        this.max_edge_id = Math.max(...bst_edges.map(d => d.id));
+        this.max_edge_id = Math.max(...edges.map(d => d.id));
         this.nodes_by_id = new Map(nodes.map(d => [d.id, d]));
-        this.edges_by_id = new Map(bst_edges.map(d => [d.id, d]));
+        this.edges_by_id = new Map(edges.map(d => [d.id, d]));
         this.node_sep_x = node_sep_x;
         this.node_sep_y = node_sep_y;
         this.force_strength = force_strength;
@@ -25,7 +25,7 @@ export class BinaryTree {
                 .alphaTarget(0.3)
                 .force("center", d3.forceCenter(width / 2, height / 2))
                 .force("collide", d3.forceCollide(d => d.r))
-                .force("BST", BinaryTree.forceBinaryTree(this.bst_edges, this.force_strength, this.node_sep_x, this.node_sep_y))
+                .force("BST", BinaryTree.forceBinaryTree(this.edges, this.force_strength, this.node_sep_x, this.node_sep_y))
                 .on("tick", tick);
     }
 
@@ -36,8 +36,8 @@ export class BinaryTree {
         }
         const left_id = this.leftChild.has(node_id) ? this.leftChild.get(node_id) : null;
         const right_id = this.rightChild.has(node_id) ? this.rightChild.get(node_id) : null;
-        const left_desc = left_id === null ? new Set() : this._compute_descendants(left_id, path.concat(node_id))
-        const right_desc = right_id === null ? new Set() : this._compute_descendants(right_id, path.concat(node_id))
+        const left_desc = left_id === null ? new Set() : this._compute_descendants(left_id, path.concat(node_id));
+        const right_desc = right_id === null ? new Set() : this._compute_descendants(right_id, path.concat(node_id));
         const desc = left_desc.union(right_desc);
         if (left_id !== null) desc.add(left_id);
         if (right_id !== null) desc.add(right_id);
@@ -47,7 +47,7 @@ export class BinaryTree {
 
     _recompute() {
         // Make edges references rather than ids
-        this.bst_edges.forEach(link => {
+        this.edges.forEach(link => {
             if (typeof link.parent !== "object") link.parent = this.getNodeById(link.parent);
             if (typeof link.child !== "object") link.child = this.getNodeById(link.child);
         });
@@ -58,9 +58,9 @@ export class BinaryTree {
         this.parent = new Map();
         this.roots = new Set(this.nodes.map((d, i) => d.id));
 
-        this.bst_edges.forEach(link => {
-            const child_map = link.type == "left" ? this.leftChild : this.rightChild;
-            if (child_map.has(link.parent.id)) throw new Error(`Node "${link.parent.label}" already has two ${link.type} children`);
+        this.edges.forEach(link => {
+            const child_map = link.label == "left" ? this.leftChild : this.rightChild;
+            if (child_map.has(link.parent.id)) throw new Error(`Node "${link.parent.label}" already has two ${link.label} children`);
             child_map.set(link.parent.id, link.child.id);
 
             if (this.parent.has(link.child.id)) throw new Error(`Node "${link.child.label}" already has a parent`);
@@ -81,20 +81,23 @@ export class BinaryTree {
         // Apply a force to align the nodes into a binary tree
         function force(alpha) {
             edges.forEach(link => {
-            let par = link.parent;
-            let child = link.child;
-            // The position we want to move the child to
-            let expect_x = par.x;
-            if (link.type == "left") {
-                expect_x -= child.bst_width_right + node_sep_x;
-            } else {
-                expect_x += child.bst_width_left + node_sep_x;
-            }
-            let expect_y = par.y + node_sep_y;
-            // Modify the velocity to move it towards the desired location
-            // x alignment is slightly more important, so make the force stronger
-            child.vx += (expect_x - child.x) * strength * 1.05 * alpha;
-            child.vy += (expect_y - child.y) * strength * alpha;
+                let par = link.parent;
+                let child = link.child;
+                // The position we want to move the child to
+                let expect_x = par.x;
+                if (link.label == "left") {
+                    expect_x -= child.bst_width_right + node_sep_x;
+                } else {
+                    expect_x += child.bst_width_left + node_sep_x;
+                }
+                let expect_y = par.y + node_sep_y;
+                // Modify the velocity to move it towards the desired location
+                // x alignment is slightly more important, so make the force stronger
+                const dx = expect_x - child.x;
+                const dpos = dx >= 0 ? 1 : -1;
+                // child.vx += (expect_x - child.x) * strength * 1.05 * alpha;
+                child.vx += dpos * Math.pow(Math.abs(dx), 1.2) * strength * 1.05 * alpha;
+                child.vy += (expect_y - child.y) * strength * alpha;
             });
         }
 
@@ -104,7 +107,7 @@ export class BinaryTree {
     refreshSim(width, height) {
         this.simulation
             .nodes(this.nodes)
-            .force("BST", BinaryTree.forceBinaryTree(this.bst_edges, this.force_strength, this.node_sep_x, this.node_sep_y))
+            .force("BST", BinaryTree.forceBinaryTree(this.edges, this.force_strength, this.node_sep_x, this.node_sep_y))
             .force("center", d3.forceCenter(width / 2, height / 2))
             .alphaTarget(0.3);
     }
@@ -133,15 +136,15 @@ export class BinaryTree {
     deleteNode(id) {
         const node = this.nodes_by_id.get(id);
         this.nodes = this.nodes.filter(d => d.id !== id);
-        this.bst_edges = this.bst_edges.filter(d => d.parent.id !== id && d.child.id !== id);
+        this.edges = this.edges.filter(d => d.parent.id !== id && d.child.id !== id);
         this.nodes_by_id.delete(id);
-        this.edges_by_id = new Map(this.bst_edges.map((d, i) => [d.id, d]));
+        this.edges_by_id = new Map(this.edges.map((d, i) => [d.id, d]));
         this._recompute();
         return node;
     }
 
-    canAddEdge(parent_id, child_id, type) {
-        if (type === "left") {
+    canAddEdge(parent_id, child_id, label) {
+        if (label === "left") {
             if (this.leftChild.has(parent_id)) return false;
         } else {
             if (this.rightChild.has(parent_id)) return false;
@@ -152,12 +155,12 @@ export class BinaryTree {
         return true;
     }
 
-    addEdge(parent_id, child_id, type) {
-        const edge = {id: this.max_edge_id + 1, parent: parent_id, child: child_id, type: type, selected: false};
+    addEdge(parent_id, child_id, label) {
+        const edge = {id: this.max_edge_id + 1, parent: parent_id, child: child_id, label: label, selected: false};
         const parent = this.getNodeById(parent_id);
         const child = this.getNodeById(child_id);
 
-        if (type === "left") {
+        if (label === "left") {
             if (this.leftChild.has(parent_id)) throw new Error(`Node ${parent.label} already has a left child`);
         } else {
             if (this.rightChild.has(parent_id)) throw new Error(`Node ${parent.label} already has a right child`);
@@ -167,7 +170,7 @@ export class BinaryTree {
 
         this.max_edge_id++;
         this.edges_by_id.set(edge.id, edge);
-        this.bst_edges.push(edge);
+        this.edges.push(edge);
 
         this._recompute();
         
@@ -176,7 +179,7 @@ export class BinaryTree {
 
     deleteEdge(id) {
         const edge = this.edges_by_id.get(id);
-        this.bst_edges = this.bst_edges.filter(d => d.id !== id);
+        this.edges = this.edges.filter(d => d.id !== id);
         this.edges_by_id.delete(id);
 
         this._recompute();
@@ -186,7 +189,7 @@ export class BinaryTree {
 
     clearAll() {
         this.nodes = [];
-        this.bst_edges = [];
+        this.edges = [];
         this._recompute();
     }
 
@@ -215,7 +218,7 @@ export class BinaryTree {
 
     stringify() {
         const nodes_dict = this.nodes.map(d => { return {id: d.id, x: d.x, y: d.y, r: d.r, label: d.label, color: d.color, selected: false, shape: d.shape}  });
-        const edges_dict = this.bst_edges.map(d => { return {id: d.id, parent: d.parent.id, child: d.child.id, type: d.type, selected: false} });
+        const edges_dict = this.edges.map(d => { return {id: d.id, parent: d.parent.id, child: d.child.id, label: d.label, selected: false} });
         return JSON.stringify({
             nodes: nodes_dict,
             bst_edges: edges_dict,

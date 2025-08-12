@@ -222,7 +222,7 @@ function redraw() {
 
   update_nodes.exit().remove();
 
-  const update_links = g_link.selectAll(".link,.link-selected").data(tree.bst_edges);
+  const update_links = g_link.selectAll(".link,.link-selected").data(tree.edges);
   update_links.exit().remove();
   link = update_links
     .enter()
@@ -241,8 +241,8 @@ function showContextMenu(e) {
   if (node_hover_id !== null) {
     let leftChild = new Map();
     let rightChild = new Map();
-    tree.bst_edges.forEach(link => {
-      (link.type == "left" ? leftChild : rightChild).set(link.parent.id, link.child.id);
+    tree.edges.forEach(link => {
+      (link.label == "left" ? leftChild : rightChild).set(link.parent.id, link.child.id);
     });
     context_add_left_child.style = leftChild.has(node_hover_id) ? "display: none;" : "";
     context_add_right_child.style = rightChild.has(node_hover_id) ? "display: none;" : "";
@@ -621,13 +621,13 @@ function run() {
       { id: 7, x: 380, y: 100, r: RADIUS, label: "7", color: "black", selected: false, shape: "circle" },
     ],
     [
-      { id: 0, parent: 1, child: 0, type: "left", selected: false },
-      { id: 1, parent: 1, child: 3, type: "right", selected: false },
-      { id: 2, parent: 3, child: 4, type: "right", selected: false },
-      { id: 3, parent: 3, child: 2, type: "left", selected: false },
-      { id: 4, parent: 0, child: 5, type: "right", selected: false },
-      { id: 5, parent: 2, child: 6, type: "left", selected: false },
-      { id: 6, parent: 5, child: 7, type: "right", selected: false },
+      { id: 0, parent: 1, child: 0, label: "left", selected: false },
+      { id: 1, parent: 1, child: 3, label: "right", selected: false },
+      { id: 2, parent: 3, child: 4, label: "right", selected: false },
+      { id: 3, parent: 3, child: 2, label: "left", selected: false },
+      { id: 4, parent: 0, child: 5, label: "right", selected: false },
+      { id: 5, parent: 2, child: 6, label: "left", selected: false },
+      { id: 6, parent: 5, child: 7, label: "right", selected: false },
     ],
     width, height, 0.1, NODE_SEP_X, NODE_SEP_Y, tick);
 
@@ -641,7 +641,7 @@ function run() {
   g_link = svg.append("g").attr("class", "links");
   link = g_link
     .selectAll(".link,.link-selected")
-    .data(tree.bst_edges)
+    .data(tree.edges)
     .enter()
     .append("path")
     .attr("class", d => d.selected ? "link-selected" : "link")

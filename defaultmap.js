@@ -1,7 +1,7 @@
 export class DefaultMap extends Map {
     constructor(defaultValue) {
-        this.defaultValue = defaultValue;
         super();
+        this.defaultValue = defaultValue;
     }
 
     get(key) {

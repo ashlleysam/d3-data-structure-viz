@@ -1,5 +1,4 @@
 import * as d3 from "https://cdn.jsdelivr.net/npm/d3@7/+esm";
-import { DefaultMap } from "./defaultmap.js";
 
 export class Graph {
     constructor(nodes, edges, width, height, node_sep, tick) {
